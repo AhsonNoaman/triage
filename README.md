@@ -33,7 +33,7 @@ catch. What follows is what *has* been measured.
 | M4 actions and preconditions | done |
 | M5 agent loop, three tools, transcripts | done |
 | M6 eval harness | built; **not run** |
-| M7 interactive frontier | not started |
+| M7 interactive frontier | done — [docs/explorer.html](docs/explorer.html) |
 
 ---
 
@@ -71,6 +71,14 @@ never pay has learned to predict corporate behaviour, not to triage a complaint,
 a company changes its practices that decider is confidently wrong. The company-visible
 configuration is kept as an ablation, so the cost of the choice is measured rather than assumed.
 
+**Company-blind is leaky, and the number is in [docs/name-leak.md](docs/name-leak.md).** 58.7% of
+narratives name their own respondent — consumers write "I contacted my bank chime" — so the agent
+reads the name in three complaints out of five whatever the structured field does. Masking those
+tokens costs the narrative model 0.021 AUC, but it takes queue volume at a 5% error budget from
+29.5% down to 22.5%, a 24% relative loss. Company-blind therefore means the structured field and
+its derived statistics are withheld. It does not mean the agent does not know who it is reading
+about, and the AUC gap alone would have made that sound smaller than it is.
+
 Every number here is reproducible with `make premise`.
 
 ---
@@ -101,6 +109,8 @@ make fetch      # the full 396,952-record slice from the CFPB API (~6 min, 209 r
 make quality    # regenerate docs/data-quality.md
 make premise    # regenerate docs/premise.md -- the baselines the agent must beat
 make plot       # redraw docs/frontier.png
+make name-leak  # regenerate docs/name-leak.md (~9 min, fits two models)
+make explorer   # rebuild docs/explorer.html -- the draggable frontier
 ```
 
 And with a key:
@@ -196,13 +206,16 @@ tests/               220 tests
 | Document | What it is |
 |---|---|
 | [DESIGN.md](DESIGN.md) | the object model, the actions, the metric definitions |
-| [DECISIONS.md](DECISIONS.md) | 28 decisions: what was chosen, what was rejected, and the mistakes |
+| [DECISIONS.md](DECISIONS.md) | 29 decisions: what was chosen, what was rejected, and the mistakes |
 | [docs/data-quality.md](docs/data-quality.md) | what the corpus actually contains, measured |
 | [docs/premise.md](docs/premise.md) | the baselines, and whether the premise survives them |
+| [docs/name-leak.md](docs/name-leak.md) | how leaky company-blind is, measured both ways |
+| [docs/explorer.html](docs/explorer.html) | drag the threshold; walk one complaint through the environment |
 | [docs/pushback.md](docs/pushback.md) | objections to the brief that measurement did not settle |
 | [docs/open-questions.md](docs/open-questions.md) | decisions deferred, and what would settle them |
 | [docs/interview-guide.md](docs/interview-guide.md) | discovery questions, written to falsify |
 
 `DECISIONS.md` is worth more than the code. The pagination trap that cost a full re-fetch
-([D21](DECISIONS.md)) and the day-inclusive bound that made every M0 figure wrong
-([D19](DECISIONS.md)) are both in there.
+([D21](DECISIONS.md)), the day-inclusive bound that made every M0 figure wrong
+([D19](DECISIONS.md)), and the leaky ablation found by reading one narrative
+([D29](DECISIONS.md)) are all in there.

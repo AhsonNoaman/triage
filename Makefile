@@ -8,7 +8,7 @@ PIP     := $(VENV)/bin/pip
 # outside one network can reach, which would make the README's install step a lie. See D20.
 INDEX   := https://pypi.org/simple/
 
-.PHONY: help setup fetch sample quality premise eval-smoke eval eval-resume eval-replay plot test typecheck lint check clean
+.PHONY: help setup fetch sample quality premise name-leak eval-smoke eval eval-resume eval-replay plot explorer test typecheck lint check clean
 
 help:
 	@echo "setup      create $(VENV) and install from public PyPI"
@@ -16,11 +16,13 @@ help:
 	@echo "sample     rebuild the committed offline sample from data/raw"
 	@echo "quality    regenerate docs/data-quality.md from data/complaints.parquet"
 	@echo "premise    regenerate docs/premise.md -- the baselines the agent has to beat"
+	@echo "name-leak  regenerate docs/name-leak.md -- how leaky the company-blind ablation is"
 	@echo "eval-smoke   ten complaints, about a dollar. Run this before spending the rest"
 	@echo "eval       run the agent over a sampled split. NEEDS A KEY AND COSTS MONEY"
 	@echo "eval-resume  continue an interrupted run; already-recorded episodes are not re-bought"
 	@echo "eval-replay  re-score the recorded run. free, no key, no network"
 	@echo "plot       redraw docs/frontier.png from whatever has been measured"
+	@echo "explorer   rebuild docs/explorer.html -- draggable frontier + one traced complaint"
 	@echo "test       pytest"
 	@echo "typecheck  mypy --strict"
 	@echo "lint       ruff"
@@ -43,6 +45,10 @@ quality:
 
 premise:
 	$(PY) scripts/premise_test.py
+
+# Fits the narrative model twice over the full training split, so it takes about ten minutes.
+name-leak:
+	$(PY) scripts/name_leak.py
 
 # Ten complaints against the real API for about a dollar. Everything the full run touches --
 # the key, the rate limit, the tool loop, the schema, the transcript, the scorer -- runs here
@@ -67,6 +73,9 @@ eval-replay:
 
 plot:
 	$(PY) scripts/plot_frontier.py
+
+explorer:
+	$(PY) scripts/build_explorer.py
 
 test:
 	$(VENV)/bin/pytest

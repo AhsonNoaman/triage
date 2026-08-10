@@ -843,6 +843,46 @@ nothing. It records the full scored `Decision` on each episode and then the repo
 by replaying the transcript it just wrote — the same code path, on the same bytes, that anyone
 without a key runs. Two implementations that agree today are two implementations that can drift.
 
+### D29 — Company-blind is leaky, and the claim is narrowed to what is true
+
+Found while spot-checking narratives for the explorer page, not by looking for it. A complaint
+in the trace panel read "I contacted my bank chime" — the respondent's name, sitting in the text
+that D24 hands the agent in full.
+
+Measured rather than argued, in [docs/name-leak.md](docs/name-leak.md):
+
+| | |
+|---|---|
+| Validation narratives naming their own respondent | **58.7%** (18,606 of 31,709) |
+| Narrative model, text as published | 0.7469 AUC, **29.5%** of queue at 5% error |
+| Narrative model, respondent names masked | 0.7260 AUC, **22.5%** of queue at 5% error |
+
+Both numbers are needed and they say different things. Three narratives in five name the
+company, so "the agent never sees who was complained about" is simply false and cannot be
+written anywhere. But masking costs 0.021 AUC, against the 0.761 the structured field reaches
+alone — the word is not the key. A name in prose is inconsistently spelled, absent from two
+complaints in five, and carries none of the respondent's history; the field is a join onto a
+relief rate over tens of thousands of prior cases.
+
+The part that would have been easy to get wrong: quoting the AUC gap and stopping. In the metric
+this project actually reports, masking takes 29.5% of the queue down to 22.5% at a 5% error
+budget — a 24% relative loss. AUC averages over the whole ranking while the operating point is
+one place on it, and respondent names help most on exactly the confident cases a deployment
+would auto-close. A summary that quotes only "0.021 AUC" flatters the design.
+
+**Rejected: mask the narrative for the agent too.** It would make the ablation clean. It would
+also damage the text the agent must reason over — these tokens sit inside product names and
+ordinary sentences — to buy a purity the deployed system would not have, since a real queue
+contains consumers naming their bank. The measurement is the honest response, not the surgery.
+
+**Rejected: drop the company-blind framing.** The join is still the thing worth withholding. It
+is the part that goes stale the moment a company changes its practices, and it is the part that
+turns a triage agent into a respondent-reputation lookup.
+
+So D24 stands with its claim narrowed: company-blind means the structured respondent field and
+every statistic derived from it are withheld. It does not mean the agent is ignorant of who it
+is reading about, and [README.md](README.md) says so.
+
 ## Open, pending M0 discovery
 
 Three conversations with support operations or complaint-handling practitioners are not yet
