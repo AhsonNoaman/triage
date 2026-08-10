@@ -693,6 +693,97 @@ is a chart with `company only` drawn on it as the baseline that the reasoning fa
 
 ---
 
+### D24 — The narrative is worth less than the dropdowns, so the agent runs company-blind
+
+M2 measured it, and the answer is not the one the brief assumes. From `docs/premise.md`, ROC
+AUC on validation, all fit on train only:
+
+| Model | AUC | Auto-resolution at 1% FRR | at 5% FRR |
+|---|---:|---:|---:|
+| shape (length, redaction density) | 0.527 | 0.0% | 0.0% |
+| **categorical, no company** | 0.662 | **0.1%** | **0.4%** |
+| narrative (TF-IDF) | 0.748 | 12.5% | 29.4% |
+| **company only** | 0.761 | **21.2%** | **33.4%** |
+| categorical (with company) | 0.781 | 20.5% | 37.9% |
+| categorical + narrative | 0.794 | 20.8% | 42.6% |
+
+Three things fall out, all with bootstrap intervals that do not cross zero, and all holding on
+test as well as validation:
+
+1. **Reading the complaint is worse than reading the dropdowns.** Narrative over categorical is
+   **−0.0327** AUC (−0.0383 to −0.0269).
+2. **The narrative adds almost nothing on top of them.** +0.0126 (+0.0093 to +0.0158) — real,
+   significant, and one tenth the size of the next line.
+3. **The company name is worth +0.1189** (+0.1130 to +0.1253) added to the other categoricals.
+   Strip it out and the model does not merely weaken, it collapses at the conservative end:
+   0.1% of the queue auto-resolvable at a 1% error rate, against 20.5% with it. A factor of 200.
+
+The frontier at the operating points anyone would actually pick is a lookup table. `company
+only` — one categorical feature, no text, no reasoning, no per-case cost — auto-resolves 21.2%
+of validation at a 1% false-resolution rate. That is not a baseline an agent beats by thinking
+harder; it is the answer, and the agent would be an expensive way to memorise it.
+
+**So the agent runs without the company name, and that is the headline configuration.**
+
+The reasoning is a product judgement, not a statistical one. Three parts:
+
+- **It is the only configuration that measures what the project claims to measure.** With the
+  name visible, a good agent learns "Block, therefore close" and the frontier reports how well
+  an LLM can memorise 1,190 respondents. That is a real capability and a worthless artifact.
+- **The bar becomes meaningful rather than unreachable or trivial.** Company-blind, the honest
+  comparator is the narrative TF-IDF model: 12.5% at 1%, 16.0% at 2%, 29.4% at 5%. Beating that
+  means extracting more from the text than a bag of bigrams does, which is exactly the thing an
+  LLM should be able to do and exactly the thing that is not yet demonstrated.
+- **TF-IDF is a floor on narrative signal, not a ceiling.** It cannot tell an authorised
+  transfer the consumer was deceived into making from an unauthorised one — a distinction worth
+  26 points of relief rate in this corpus and the difference between a Reg E error and no error
+  at all. If the agent cannot beat 0.748 with that distinction available to it, the premise
+  really has failed, and the frontier plot will say so.
+
+**Both curves get reported.** Company-blind is the headline; company-visible is drawn on the
+same axes with `company only` beside it, because hiding the lookup would misrepresent what a
+deployed system would actually do. A support operations lead reading this should see that the
+cheapest thing on the chart is a table of respondents, and should see how much reading the
+complaint adds to it.
+
+**Rejected:** running company-visible as the headline, which produces a better-looking number
+that means less. Dropping the company from the ontology entirely, which would make the
+company-visible ablation unbuildable and hide the strongest single finding in the corpus.
+Reporting only the AUC comparison, which is where this looks like a modest 0.033 and hides that
+the frontier difference at 1% FRR is 200-fold.
+
+**What this costs.** The honest headline is now "reading the complaint is worth roughly 12% of
+the queue at a 1% error rate, against 21% for knowing who it is about" — a weaker claim than
+the brief imagined, and one that could get weaker still if the agent underperforms TF-IDF.
+That is the claim the measurement supports.
+
+**Could be reversed by:** the agent, at M6. If a company-blind agent reaches the company-visible
+frontier, the reasoning is doing work no lookup can do and the configuration question is settled
+the other way.
+
+---
+
+### D25 — The calibration bar is set by logistic regression, not by hope
+
+The user's M1 note asked for calibration to be measured rather than assumed, on the grounds
+that LLM-stated confidence usually is not calibrated. The baselines now say what "calibrated"
+should look like on this corpus: expected calibration error of **0.015 to 0.030** across every
+fitted model on both evaluation splits, ten equal-width bins, weighted by occupancy.
+
+Logistic regression fit by maximum likelihood gets that close to free, which is what makes it
+the right bar rather than an unfair one. If the agent's stated confidence lands materially
+above it, then `tau` is a number on a scale that does not mean what it says, and the whole
+frontier is drawn on sand.
+
+Platt scaling on validation stays the remedy rather than isotonic, per D16 — at 500 evaluated
+complaints per split, isotonic has enough freedom to fit the noise. Whether it is needed is an
+M6 measurement. The reliability diagram goes on the same page as the frontier.
+
+`triage.metrics.expected_calibration_error` computes this for the baselines and the agent
+alike, from one implementation, for the reason in that module's docstring.
+
+---
+
 ## Open, pending M0 discovery
 
 Three conversations with support operations or complaint-handling practitioners are not yet
