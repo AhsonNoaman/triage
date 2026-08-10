@@ -55,12 +55,12 @@ respond*.
 **Amended later at M0, twice.** The count and rate below were both wrong: the product filter was
 missing a retired taxonomy label (see D11), and the relief rate quoted only the monetary half of
 the label defined in D4. Corrected figures: **five raw product labels collapsing to four
-canonical products, 397,945 in-scope narrative complaints over 2021-2025 of which 326,691 fall
-in the three retained split windows, at a 20.3-26.8% relief rate depending on split.** The scope
+canonical products, 396,952 in-scope narrative complaints over 2021-2025 of which 325,919 fall
+in the three retained split windows, at a 20.4-26.8% relief rate depending on split.** The scope
 decision itself stands.
 
 **Chosen:** credit card, checking or savings, prepaid card, money transfer. Narratives only,
-2021-2025. 397,945 complaints across five raw product labels, at a 20.3-26.8% relief rate
+2021-2025. 396,952 complaints across five raw product labels, at a 20.4-26.8% relief rate
 depending on split.
 
 **Rejected:** all products (2.4M narrative complaints, 88% credit reporting, ~0.5% positive
@@ -102,12 +102,12 @@ would tune the operating point to escalate the cheap rule-governed cases and aut
 ambiguous ones. The metric would point the wrong way, and it would do so invisibly, because the
 resulting curve would still look like a curve.
 
-Including non-monetary relief is the substantive half of this. It is 11.09% of the train window,
+Including non-monetary relief is the substantive half of this. It is 11.10% of the train window,
 larger than monetary relief in credit card complaints (17.4% against 16.2%), and it covers the
 frozen account, the corrected record, the reversed adverse action — cases where an automated
 closure withholds something the company itself decided to do, and where the customer harm is
 often larger than a withheld refund. Excluding it also roughly halves the positive class: on the
-validation split, from 20.66% to 12.72%; on the train window, from 26.83% to 15.74%. That is the
+validation split, from 20.63% to 12.68%; on the train window, from 26.83% to 15.74%. That is the
 difference between a curve estimable from a few hundred samples and one that is not.
 
 `timely` was measured at 98.95% `Yes` on the in-scope slice. It contributes no signal and
@@ -202,7 +202,7 @@ overstates everything downstream. Choosing the threshold on the same split it is
 would be the same error wearing a different hat.
 
 The corrected boundaries also buy something the original did not: validation and test are now
-adjacent and their base rates agree to 0.3 points — 20.66% against 20.34%. An operating point
+adjacent and their base rates agree to 0.28 points — 20.63% against 20.35%. An operating point
 chosen on one transfers to the other on a like-for-like population. Under the original
 boundaries, validation sat at 25.81% and test at 10.46%.
 
@@ -283,8 +283,8 @@ this design did.
 
 **Why:** the CFPB re-versions its product taxonomy without restating history.
 `Credit card or prepaid card` carries 16,607 / 21,512 / 21,283 in-scope narrative complaints in
-2021 / 2022 / 2023 and exactly zero from 2024 on. The naive filter drops 59,402 of the 154,088
-in-scope complaints filed before 2024 — **39%** — and drops them **entirely from the training
+2021 / 2022 / 2023 and exactly zero from 2024 on. The naive filter drops 59,402 of the 156,431
+in-scope complaints filed before 2024 — **38%** — and drops them **entirely from the training
 window**, which is where the `similar_to` retrieval corpus lives.
 
 The failure mode is the dangerous kind: the agent would have retrieved from a corpus with a
@@ -302,18 +302,17 @@ measured bucket list.
 
 ### D12 — Two months are excluded, and the boundary is chosen on volume rather than outcome
 
-**Chosen:** 2025-01-01 to 2025-02-28 is excluded from every split. 71,254 in-scope narrative
+**Chosen:** 2025-01-01 to 2025-02-28 is excluded from every split. 71,033 in-scope narrative
 complaints.
 
 **Rejected:** keeping the window and noting it as a limitation; excluding January only;
 excluding by respondent rather than by date.
 
-**Why:** January 2025 carries 60,251 in-scope narrative complaints against a 2024 monthly
-baseline of 5,964 to 7,500 — nine times normal — at a 3.8% relief rate against a ~25% baseline.
-It is concentrated in two respondents: Block, Inc. is 31.7% of all in-scope 2025 H1 complaints
-against 3.0% of 2024 H2, and Early Warning Services 14.9% from outside the top twelve respondents
-of 2024 H2. By 2025 H2 Block is back to 8.0%. February is still 1.7× baseline; from March the
-monthly count returns to the band it holds for the rest of the year.
+**Why:** January 2025 carries 59,759 in-scope narrative complaints against a 2024 monthly mean
+of 6,573 — 9.1 times normal — at a 3.79% relief rate against a ~26% baseline. It is two
+respondents: Block, Inc. goes 3.01% of 2024 H2 to 31.75% of 2025 H1, and Early Warning Services
+0.68% to 15.00%. By 2025 H2 they are back to 7.97% and 1.84%. February is still 1.7× the mean;
+from March the monthly count returns to the band it holds for the rest of the year.
 
 **The boundary is chosen on volume, and this is the load-bearing part of the decision.** Volume
 is visible without looking at any label, so the cut is not the result of peeking at relief rates
@@ -472,7 +471,7 @@ operating point prints `n_auto` and the positive count behind its false-resoluti
 **Rejected:** 500 uniform draws per split; 1,000 uniform draws per split; a point estimate with
 no interval.
 
-**Why:** at a 20.7% positive class, 500 uniform draws yields ~104 positives, and the
+**Why:** at a 20.63% positive class, 500 uniform draws yields ~103 positives, and the
 false-resolution numerator at the conservative end of the sweep — high τ, small `n_auto` — is a
 single-digit cell count. A curve drawn through those is not a curve. The stratified draw buys
 ~2.4× the positives in the cell that binds at identical token cost, and it is unbiased under
@@ -481,7 +480,7 @@ from.
 
 Two details recorded now because they are easy to get wrong later: **the weights must be applied
 to the ECE bins and the Platt fit**, or the calibrator targets a 50% base rate rather than the
-true 20.7% and makes things worse than no calibration at all; and the **bootstrap resamples
+true 20.63% and makes things worse than no calibration at all; and the **bootstrap resamples
 within stratum**, holding the two counts fixed, because resampling the pooled sample would treat
 a design constant as random.
 
@@ -491,6 +490,206 @@ chosen from noise.
 
 **Could be reversed by:** nothing on the method. The sample size moves if the validation bands
 turn out too wide, which is what the $40 reserve in DESIGN.md §5.7 is for.
+
+---
+
+### D19 — `date_received_max` is inclusive, and every M0 figure was overcounted by a day
+
+**Chosen:** both window bounds are inclusive; the fetcher passes `window.end` unchanged.
+
+**Rejected:** the first implementation, which added a day to the window end on the assumption
+that `max` was exclusive.
+
+**Why this is here rather than fixed silently:** it is the mistake, and how it was caught is the
+useful part.
+
+`min=2025-12-31, max=2025-12-31` returns 409 complaints, not zero. The API treats both bounds as
+inclusive. Every probe behind the M0 numbers had been written with an exclusive `max`, so each
+split absorbed the first day of the next one, the excluded submission-wave window leaked a day
+into validation, and the whole-slice total was 397,945 instead of 396,952.
+
+Nothing looked wrong. The splits were plausible, the base rates were plausible, and the
+conclusions did not change. It was found because the assumption got written into a comment in
+`api.py` — and a sentence claiming the API behaves a certain way is a claim, so it got checked.
+The corrected windows now sum to exactly what a single query over the full range returns, which
+is a check that did not hold before and now runs as a coverage assertion on every fetch.
+
+The general form, which is the reusable part: an off-by-one at a partition boundary does not
+announce itself. It produces a smaller, well-formed, entirely believable dataset. The only
+defence is an independent total to reconcile against.
+
+**Could be reversed by:** nothing. It is a property of the API, pinned by
+`tests/test_api.py::test_window_bounds_are_inclusive_in_the_request`.
+
+---
+
+### D20 — Dependencies are pinned to public PyPI, explicitly, in a committed target
+
+**Chosen:** `make setup` installs with `--index-url https://pypi.org/simple/`.
+
+**Rejected:** relying on the machine's default index; committing a `pip.conf`; vendoring wheels.
+
+**Why:** `/etc/pip.conf` on the machine this was built on points at a corporate Artifactory mirror. Installing
+through it would work here and fail for anyone else, which breaks the brief's requirement that
+a stranger reach a working instance from the README in five minutes. It is the same defect as
+an employer email in the commit log or a corporate registry host in a lockfile — the repository
+has to outlive the employer, including its network.
+
+The index is set on the command line inside a committed `Makefile` rather than in a config file,
+because a config file is a second source of truth that only speaks up when it disagrees, and
+because the explicit flag is visible in the one place a reader is already looking.
+
+**Could be reversed by:** nothing.
+
+---
+
+### D21 — The API has no pagination, and believing its documentation cost a full fetch
+
+**The mistake.** The CFPB search endpoint documents an offset parameter, `frm`. It accepts it.
+It validates it — `frm` above 10,000 returns HTTP 400 `Ensure this value is less than or equal
+to 10000`, and `frm` that is not an exact multiple of `size` returns HTTP 400 `frm is not zero
+or a multiple of size`. Both of those errors cost me a debugging cycle each, and both taught the
+same wrong lesson: that the parameter works and I was holding it incorrectly.
+
+It does not work. `frm` is parsed, checked, and then discarded. Measured three ways:
+
+| Request | Returns |
+|---|---|
+| `size=100&frm=0` vs `size=100&frm=100` | identical ids, first to last |
+| `size=100&frm=100` vs records 101–200 of `size=200&frm=0` | **not** equal |
+| `size=100&frm=100` vs records 1–100 of `size=200&frm=0` | equal |
+| `size=10000&frm=0` vs `size=10000&frm=10000` | 10,000 ids each, overlap 10,000, union 10,000 |
+
+Every query returns the first `size` records of its result set. The last row is the one that
+matters: a 12,312-record window read as two pages yields 10,000 distinct complaints and appears
+to have read 20,000. Holding sort constant does not help; the behaviour is identical under
+`created_date_desc`, `relevance_desc`, and no sort, and page 1 is byte-stable across repeated
+requests, so nothing about it looks broken.
+
+**How it surfaced.** `FetchResult.assert_complete` — retrieved 359,006 distinct complaints
+against an API count of 396,952, short by 37,946. Nothing else would have caught it. Every
+record fetched was valid, the schema was right, the date coverage was continuous, the product
+mix was plausible, and the file was 90% of the expected size. A 9.6% silent loss concentrated in
+the largest partitions would have propagated into every base rate in M2 and every retrieval in
+M3, and the first symptom would have been numbers that were merely a bit off.
+
+That check existed because flightops taught it. It is the single highest-value thing in the
+ingestion layer, and it justified itself on the first run.
+
+**What replaced paging.** Reversing the sort. `created_date_asc` and `created_date_desc`
+traverse opposite ends of the same total order, so two requests reach 20,000 records where one
+reaches 10,000 — the ceiling I originally documented, arrived at by a completely different
+mechanism than the one I assumed. Measured on the worst partition in the corpus, 2025-01-17
+money transfer, 12,325 complaints in a single day:
+
+```
+created_date_desc  10,000 distinct
+created_date_asc   10,000 distinct
+union              12,325     overlap 7,675     missing 0
+```
+
+Within a single day every `created_date` ties, so this works only because the API's tie-break is
+itself a stable total order that the direction flag reverses. That is an implementation detail
+of theirs, not a documented guarantee.
+
+**So it is the last resort, not the default.** The fetcher bisects the date range, then splits
+by product, and only reads both ends when a single day of a single product still exceeds a
+page. `PARTITION_TARGET` is 9,000 — under the 10,000 page ceiling — so the ordinary path is one
+request per partition and the fragile path runs roughly once in the whole corpus. When it does
+run, `_read_partition` compares the union against the count for that partition and raises
+`PartitionTooLargeError` naming the day and the product, rather than deferring to a coverage
+assertion that would report a five-year window five years wide.
+
+**Rejected:** `search_after`, which returns HTTP 424. Partitioning on `state` or `company`,
+either of which would add a third axis — unnecessary once the two-ended read covered the worst
+day with 38% slack, and both would need an aggregation request per partition to enumerate the
+values. Lowering `PARTITION_TARGET` to 4,000 and never reading both ends, which trades a rare
+fragile path for roughly 100 extra requests and still fails on 2025-01-17.
+
+**What I should have done.** The first version of the fetch fixture honoured `frm` — it paged
+obligingly, because I wrote it from the same documentation the client was written from. A mock
+built from an assumption cannot test that assumption. The fixture is now `FakeCFPB`, which
+reproduces the trap: it ignores `frm` and always returns the first `size` in sort order. With
+that in place, deleting bisection or the reverse read fails the suite in under a second, which
+is where a 40-minute fetch should have found out.
+
+**Could be reversed by:** the CFPB implementing `frm`, which the coverage assertion would not
+notice, because it only fails in the safe direction.
+
+---
+
+### D22 — Dates do not survive redaction, so no obligation may be keyed to date arithmetic
+
+Measured over all 396,952 narratives (`docs/data-quality.md` §1):
+
+| In the narrative | Complaints | Share |
+|---|---:|---:|
+| A **redacted** date (`XX/XX/XXXX`) | 131,038 | 33.01% |
+| A **surviving** date (`3/14/2025`) | 274 | **0.07%** |
+| A **surviving** dollar amount (`$35.00`) | 158,911 | 40.03% |
+| A **redacted** dollar amount (`{$XX.00}`) | 9,347 | 2.35% |
+
+A third of complaints state a date and the CFPB scrubs essentially every one of them. Amounts
+are the opposite: they survive nine times out of ten.
+
+This is a premise-level constraint on M4, not a data-cleaning note. The Reg E and Reg Z hooks
+that made `PolicyRule` worth grounding are split cleanly down the middle by it:
+
+- **Checkable.** The $50 / $500 Reg E liability tiers under 12 CFR 1005.11, and any threshold
+  denominated in dollars. Present in 40% of complaints, absent rather than wrong in the rest.
+- **Not checkable from the narrative.** Reg E's 10-business-day investigation window, Reg Z's
+  60-day assertion window, FCRA §611's 30-day reinvestigation period. Every one of these is
+  the number of days between two dates, and one or both dates is `XX/XX/XXXX` in all but 0.07%
+  of cases.
+
+**What changes.** Any `PolicyRule` whose precondition is a date interval can only ever evaluate
+to unknown, and an action gated on it would fail its precondition on 99.93% of the corpus --
+which would show up at M6 as `request_information` swallowing the queue and look like a
+reasoning failure rather than a data one. So date-interval preconditions are cut from the rule
+set at M4, and the rules that remain are the amount-denominated and category-denominated ones.
+`date_received` is still available as a field, so intervals anchored to *intake* rather than to
+an event described in the text remain computable.
+
+Worth being blunt about the cost: this removes the most legally crisp obligations from the
+demo. The 10-business-day clock is the single most quotable thing in Reg E and it cannot be
+checked here. Keeping it and letting it silently never fire would have been worse.
+
+**Rejected:** inferring dates from the surviving year in `XX/XX/2023`, which gives a 365-day
+interval of uncertainty on a 10-day question. Using `date_received` as a proxy for the date of
+the disputed transaction, which conflates when the consumer complained with when the thing
+happened, and would fabricate a precise-looking interval out of nothing.
+
+**Could be reversed by:** the bulk CSV, if its narratives are scrubbed less aggressively than
+the API's. Not checked, and worth ten minutes before M4.
+
+---
+
+### D23 — Two respondents never grant relief, and that is a threat to the whole premise
+
+`docs/data-quality.md` §7:
+
+| Respondent | Complaints | Granted relief |
+|---|---:|---:|
+| Block, Inc. | 43,637 | **0.08%** |
+| Early Warning Services, LLC | 18,216 | **0.00%** |
+| CITIBANK, N.A. | 22,975 | 42.46% |
+| BANK OF AMERICA | 26,571 | 40.49% |
+
+Not a small effect and not confined to the excluded January window: Block carries 11% of the
+whole corpus. A model that sees the company name can score extremely well on 61,853 complaints
+without reading a word of them, and a frontier drawn from such a model would be measuring
+respondent identity while claiming to measure complaint triage.
+
+This sharpens open question C7 from a nice-to-have ablation into a load-bearing measurement, so
+M2 answers it before M3 begins rather than after M6. The premise test now fits `company only`
+and `categorical, no company` alongside the rest, and the gap between them is what the name is
+worth on its own.
+
+**Not yet decided** — the measurement comes first, and the argument runs both ways. Respondent
+identity is genuinely known at intake and a real support agent would genuinely know it, so
+withholding it makes the eval harder than the job. But if the name alone reaches most of the
+frontier, then the agent's reasoning is decoration on a lookup table, and the honest artifact
+is a chart with `company only` drawn on it as the baseline that the reasoning failed to beat.
 
 ---
 

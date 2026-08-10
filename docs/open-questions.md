@@ -29,7 +29,7 @@ second exists.
 ### A2. Is the positive class large enough for a frontier curve to carry information? — **Measured**
 
 Database-wide, monetary relief is 0.48% in 2025. A curve over a 0.48% positive class is a flat
-line. On the in-scope slice under the §3.2 mapping it is **20.66% on validation and 20.34% on
+line. On the in-scope slice under the §3.2 mapping it is **20.63% on validation and 20.35% on
 test** — 26.83% on the train window.
 
 *Gates:* product scope, sample sizes, whether the headline artifact exists.
@@ -59,7 +59,7 @@ counts is §3.1.
 
 The substantive part is including non-monetary relief, which the brief omitted. It is 11.1% of
 the train window, it covers the frozen-account and corrected-record cases where customer harm is
-often largest, and including it takes the positive class from 12.72% to 20.66% on the validation
+often largest, and including it takes the positive class from 12.68% to 20.63% on the validation
 split.
 
 ### B2. Is `timely` part of the label? — **Measured, no**
@@ -108,8 +108,8 @@ enumerated at M1 from data rather than authored.
 ### C4. Is `product` a stable key? — **Measured, no**
 
 `Credit card or prepaid card` is a retired label carrying 59,402 in-scope narrative complaints in
-2021-2023 and exactly zero thereafter. Filtering on current labels drops 39% of the pre-2024
-in-scope population — 59,402 of 154,088 — entirely from the training window, which is where the
+2021-2023 and exactly zero thereafter. Filtering on current labels drops 38% of the pre-2024
+in-scope population — 59,402 of 156,431 — entirely from the training window, which is where the
 retrieval corpus lives.
 
 *Consequence:* `Product` carries a `labels` alias list; five raw labels collapse to four canonical
@@ -208,7 +208,7 @@ never re-contacted at this stage, the third action should go.
 
 ### D4. Is 500 complaints per split enough? — **Decided, with a reserve**
 
-Not uniformly: at 20.7% positive, 500 uniform draws gives ~104 positives and single-digit cell
+Not uniformly: at 20.63% positive, 500 uniform draws gives ~103 positives and single-digit cell
 counts at the conservative end of the sweep. Stratified 250/250 with Horvitz–Thompson
 reweighting buys ~2.4× the positives in the binding cell at the same token cost, and the
 frontier carries bootstrap bands with `n_auto` and the positive count printed at every operating

@@ -110,8 +110,8 @@ Monetary relief among complaints carrying a narrative, 2021-2025:
 
 Counts in this table are under the *current* product labels only, and four of them are
 understated: the taxonomy carries retired labels for the same products (trap 1 below). Corrected
-and summed over the split windows in §5.1, the in-scope population is **397,945** narrative
-complaints — 326,691 retained and 71,254 in the excluded window — against roughly 3.06 million
+and summed over the split windows in §5.1, the in-scope population is **396,952** narrative
+complaints — 325,919 retained and 71,033 in the excluded window — against roughly 3.06 million
 narrative complaints across all products.
 
 The finding is neither "the premise failed" nor "the premise held". It is: **the CFPB database as
@@ -135,11 +135,18 @@ narrative complaints:
 | 2024 | **0** | — |
 | 2025 | **0** | — |
 
-Filtering on the two current labels drops 59,402 of the 154,088 in-scope complaints filed before
-2024 — **39%** — and drops them *entirely from the training window*, which is where the
+Filtering on the two current labels drops 59,402 of the 156,431 in-scope complaints filed before
+2024 — **38%** — and drops them *entirely from the training window*, which is where the
 `similar_to` retrieval corpus lives. The agent would have retrieved from a corpus with a
 three-year hole in it, and nothing in the eval would have shown that. The same versioning affects
 credit reporting, which carries two labels for the same product.
+
+`sub_product` is what makes the retired label recoverable rather than merely countable. It
+partitions cleanly — 93.2% of the retired label carries a credit-card sub-product and 6.8% a
+prepaid one, and no sub-product appears under two canonical products. That split is load-bearing
+rather than cosmetic: credit cards fall under Reg Z and prepaid cards under Reg E, so collapsing
+the retired label onto one canonical product would make `resolve()` reject the correct citation
+for the other half.
 
 The in-scope product set is therefore five labels, not four, and `Product` gets an explicit
 alias map rather than a passthrough of the raw string.
@@ -150,28 +157,44 @@ In-scope monthly volume and relief rate:
 
 | Month | n | relief |
 |---|---:|---:|
-| 2024-07 … 2024-12 | 6,281 – 7,368 | 25.0% – 26.3% |
-| **2025-01** | **60,251** | **3.8%** |
-| **2025-02** | **11,495** | **14.9%** |
-| 2025-03 | 8,589 | 19.8% |
-| 2025-04 | 8,387 | 20.5% |
-| 2025-05 | 8,903 | 20.7% |
-| 2025-06 | 9,119 | 21.6% |
-| 2025-07 … 2025-12 | 8,462 – 10,436 | 17.9% – 21.9% |
+| 2024, monthly range | 5,780 – 7,320 | 25.0% – 32.5% |
+| **2025-01** | **59,759** | **3.79%** |
+| **2025-02** | **11,274** | **14.87%** |
+| 2025-03 | 8,277 | 19.93% |
+| 2025-04 | 8,079 | 20.32% |
+| 2025-05 | 8,744 | 20.64% |
+| 2025-06 | 8,752 | 21.57% |
+| 2025-07 … 2025-12 | 8,200 – 10,041 | 17.79% – 21.96% |
 
-January 2025 carries nine times the 2024 monthly baseline at a seventh of the relief rate. It is
-concentrated in two respondents: Block, Inc. accounts for 31.7% of all in-scope 2025 H1
-complaints against 3.0% of 2024 H2, and Early Warning Services for 14.9% from outside the top
-twelve respondents of 2024 H2. By 2025 H2, Block is back to 8.0%.
+January 2025 carries **9.1×** the 2024 monthly mean of 6,573 at a seventh of the relief rate. It
+is two respondents:
+
+| Respondent | 2024 H2 | 2025 H1 | 2025 H2 |
+|---|---:|---:|---:|
+| Block, Inc. | 3.01% | **31.75%** | 7.97% |
+| Early Warning Services | 0.68% | **15.00%** | 1.84% |
 
 The original split boundaries put 2025 H1 in the test window. The reported numbers would have
-been dominated by a single-month submission wave whose relief profile bears no relation to the
+been dominated by a two-respondent submission wave whose relief profile bears no relation to the
 queue the product is about.
 
-**The exclusion boundary is chosen on volume, not on outcome.** January is 9× baseline and
-February is 1.7×; from March the monthly count sits in the same band as the rest of 2025. Volume
-is visible without looking at any label, so the cut is not the result of peeking at relief rates.
-The relief rates are reported above as a consequence of the cut, not as its criterion.
+**The exclusion boundary is chosen on volume, not on outcome.** January is 9.1× the 2024 mean
+and February is 1.7×; from March the monthly count sits in the same band as the rest of 2025.
+Volume is visible without looking at any label, so the cut is not the result of peeking at relief
+rates and trimming until the splits agreed. The relief rates are reported above as a consequence
+of the cut, not as its criterion.
+
+### 2.4 One measurement error, found by checking rather than by consequence
+
+The first version of every figure above was overcounted by one day per window. `date_received_max`
+is **inclusive**, not exclusive: `min=max=2025-12-31` returns 409 complaints rather than zero.
+The fetcher had been written to add a day to the window end, so each split absorbed the first day
+of the next one and the excluded window leaked a day into validation.
+
+It is recorded here because of how it was found — not by a number looking wrong, but by writing
+the assumption into a comment in `api.py` and then checking it because it was an assumption. The
+corrected split totals now sum to 396,952, which is exactly what a single query over the whole
+range returns. That agreement is the check; it did not hold before.
 
 ---
 
@@ -187,10 +210,10 @@ there is no residual "other":
 
 | `company_response` | train n | share | Counts as *a human was needed*? |
 |---|---:|---:|---|
-| `Closed with explanation` | 172,118 | 73.10% | **No** |
-| `Closed with monetary relief` | 37,056 | 15.74% | **Yes** |
-| `Closed with non-monetary relief` | 26,119 | 11.09% | **Yes** |
-| `Untimely response` | 154 | 0.07% | **Excluded from the eval** |
+| `Closed with explanation` | 172,014 | 73.103% | **No** |
+| `Closed with monetary relief` | 37,026 | 15.735% | **Yes** |
+| `Closed with non-monetary relief` | 26,110 | 11.096% | **Yes** |
+| `Untimely response` | 154 | 0.065% | **Excluded from the eval** |
 | `In progress` | 0 in train, 2 in 2021-2025 | ~0% | **Excluded from the eval** |
 
 The legacy values `Closed`, `Closed with relief`, and `Closed without relief` do not occur in this
@@ -220,7 +243,7 @@ Excluding non-monetary relief would mean scoring an agent as correct for closing
 account and will not tell me why" with an explanation, in a case where the company in fact
 unfroze the account. That is the same category of error as a withheld refund, and it is a
 category where the customer harm is often larger. Including it also roughly doubles the positive
-class — on the validation split, from 12.72% to **20.66%** — which is the difference between a
+class — on the validation split, from 12.68% to **20.63%** — which is the difference between a
 curve that can be estimated from a few hundred samples and one that cannot.
 
 **`Untimely response` → excluded rather than mapped.** It records that the company missed the
@@ -301,10 +324,11 @@ Product    -[contains]->        IssueCategory
 | `issue` / `sub_issue` | `issue`, `sub_issue` | |
 | `submitted_via` | `submitted_via` | |
 | `state`, `zip_prefix` | `state`, `zip_code` | partial ZIP; the only geography |
-| `tags` | `tags` | `Servicemember`, `Older American`, or empty |
-| `consumer_consent_provided` | `consumer_consent_provided` | constant in scope; kept to make that visible |
+| `tags` | `tags` | `Servicemember`, `Older American`, or empty — empty on 81.9% |
 
-`state`, `zip_prefix`, and `tags` are the fields that would have populated `Consumer`. They stay
+The API returns exactly these seventeen fields and no others. `consumer_consent_provided` and
+`consumer_disputed` are **not** among them, which is the record-level confirmation of D2.
+`state`, `zip_code`, and `tags` are the fields that would have populated `Consumer`. They stay
 here as columns.
 
 **`Company`** — the respondent. Identity: the CFPB `company` string, normalised through a
@@ -501,13 +525,15 @@ same error wearing a different hat.
 
 | Split | Window | n | relief rate | Purpose |
 |---|---|---:|---:|---|
-| Train / retrieval | 2021-01-01 – 2024-12-31 | 235,447 | 26.83% | retrieval corpus, prompt iteration, baseline fitting |
-| *(excluded)* | *2025-01-01 – 2025-02-28* | *71,254* | *5.58%* | *bulk-submission event, §2.3* |
-| **Validation** | 2025-03-01 – 2025-06-30 | 34,219 | **20.66%** | **the operating point and the calibrator are chosen here** |
-| **Test** | 2025-07-01 – 2025-12-31 | 57,025 | **20.34%** | **the reported numbers come from here** |
+| Train / retrieval | 2021-01-01 – 2024-12-31 | 235,304 | 26.83% | retrieval corpus, prompt iteration, baseline fitting |
+| *(excluded)* | *2025-01-01 – 2025-02-28* | *71,033* | *5.55%* | *bulk-submission event, §2.3* |
+| **Validation** | 2025-03-01 – 2025-06-30 | 33,852 | **20.63%** | **the operating point and the calibrator are chosen here** |
+| **Test** | 2025-07-01 – 2025-12-31 | 56,763 | **20.35%** | **the reported numbers come from here** |
 
-Validation and test are adjacent and their base rates agree to 0.3 points, which is what the
-exclusion bought. Which split produced which number is stated everywhere a number appears.
+Both bounds are inclusive, and the four windows sum to 396,952 — exactly what a single query
+over 2021-01-01 to 2025-12-31 returns. Validation and test are adjacent and their base rates
+agree to 0.28 points, which is what the exclusion bought. Which split produced which number is
+stated everywhere a number appears.
 
 ### 5.2 The confidence, defined as one quantity
 
@@ -589,7 +615,7 @@ sweep free. It is the difference between a threshold that means something and an
 
 ### 5.5 Sampling and uncertainty
 
-At a 20.7% positive class, 500 uniform draws per split gives ~104 positives, and the false-
+At a 20.63% positive class, 500 uniform draws per split gives ~103 positives, and the false-
 resolution numerator at the conservative end of the sweep is a single-digit cell count. A curve
 drawn through those is not a curve.
 
@@ -603,7 +629,7 @@ buys ~2.4× the positives in the cell that binds, at the same token cost. The ag
 Two details that are easy to get wrong and are therefore written down now:
 
 - **ECE and the calibrator must use the weights.** Fitting Platt on an unweighted 50/50 sample
-  calibrates to a 50% base rate rather than the true 20.7%, which is worse than not calibrating.
+  calibrates to a 50% base rate rather than the true 20.63%, which is worse than not calibrating.
 - **Bootstrap resamples within stratum**, holding `n_pos` and `n_neg` fixed, 2,000 replicates,
   percentile intervals.
 
@@ -621,8 +647,8 @@ Two, where the brief asked for one.
    that is the finding and it leads the README ahead of the agent's own numbers. It is also the
    direct test of the brief's "how much signal lives in the narrative" question.
 2. **Majority class** — always auto-close. The floor. On the test split this auto-resolves 100%
-   of the queue at a 20.3% false-resolution rate, which is the clearest available illustration of
-   why accuracy is the wrong frame: it is also 79.7% "accurate".
+   of the queue at a 20.35% false-resolution rate, which is the clearest available illustration
+   of why accuracy is the wrong frame: it is also 79.65% "accurate".
 
 ### 5.7 Eval budget, booked at M0
 

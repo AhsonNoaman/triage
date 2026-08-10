@@ -135,7 +135,7 @@ Three things it does not mention that would each have broken the eval quietly.
 
 **Non-stationarity.** The brief assumes a stable population. It is not: `product` is re-versioned
 without restating history, which silently drops 59,402 in-scope complaints from the training
-window alone, and January 2025 carries nine times baseline volume from a two-respondent
+window alone, and January 2025 carries 9.1 times baseline volume from a two-respondent
 submission wave at a seventh of the usual relief rate. Both are documented in DESIGN.md §2.3.
 
 **Leakage discipline on the retrieval link.** The brief calls `similar_to` "the one that carries
@@ -143,7 +143,7 @@ the hard logic" and says nothing about split boundaries. A single neighbour retr
 later split hands the agent a labelled near-duplicate. No forward reach and no same-event
 retrieval are now tested properties.
 
-**Sampling under class imbalance.** At a 20.7% positive class, the conservative end of the
+**Sampling under class imbalance.** At a 20.63% positive class, the conservative end of the
 threshold sweep is estimated from single-digit cell counts. Stratified draws with reweighting and
 bootstrap bands, with `n` printed at every operating point.
 
