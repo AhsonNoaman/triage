@@ -2,8 +2,10 @@
 
 from triage.agent.loop import (
     DECISION_SCHEMA,
+    INPUT_COST_PER_MTOK,
     MAX_TURNS,
     MODEL,
+    OUTPUT_COST_PER_MTOK,
     SYSTEM_PROMPT,
     Decision,
     Episode,
@@ -18,8 +20,10 @@ from triage.agent.tools import TOOLS, ToolBox
 
 __all__ = [
     "DECISION_SCHEMA",
+    "INPUT_COST_PER_MTOK",
     "MAX_TURNS",
     "MODEL",
+    "OUTPUT_COST_PER_MTOK",
     "SYSTEM_PROMPT",
     "TOOLS",
     "Decision",

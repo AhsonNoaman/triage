@@ -8,7 +8,7 @@ PIP     := $(VENV)/bin/pip
 # outside one network can reach, which would make the README's install step a lie. See D20.
 INDEX   := https://pypi.org/simple/
 
-.PHONY: help setup fetch sample quality premise eval eval-replay plot test typecheck lint check clean
+.PHONY: help setup fetch sample quality premise eval-smoke eval eval-resume eval-replay plot test typecheck lint check clean
 
 help:
 	@echo "setup      create $(VENV) and install from public PyPI"
@@ -16,7 +16,9 @@ help:
 	@echo "sample     rebuild the committed offline sample from data/raw"
 	@echo "quality    regenerate docs/data-quality.md from data/complaints.parquet"
 	@echo "premise    regenerate docs/premise.md -- the baselines the agent has to beat"
+	@echo "eval-smoke   ten complaints, about a dollar. Run this before spending the rest"
 	@echo "eval       run the agent over a sampled split. NEEDS A KEY AND COSTS MONEY"
+	@echo "eval-resume  continue an interrupted run; already-recorded episodes are not re-bought"
 	@echo "eval-replay  re-score the recorded run. free, no key, no network"
 	@echo "plot       redraw docs/frontier.png from whatever has been measured"
 	@echo "test       pytest"
@@ -42,11 +44,20 @@ quality:
 premise:
 	$(PY) scripts/premise_test.py
 
-# The only target that spends money. Roughly $30-60 per split at the default 250 per class.
-# Writes data/transcripts/<split>.jsonl as it goes, so a run that dies is re-scorable and
-# resumable rather than lost.
+# Ten complaints against the real API for about a dollar. Everything the full run touches --
+# the key, the rate limit, the tool loop, the schema, the transcript, the scorer -- runs here
+# first. Finding a bug at complaint 480 of 500 is the expensive way to find it.
+eval-smoke:
+	$(PY) scripts/run_eval.py --split validation --limit 10 --yes
+
+# The target that spends money: roughly $60 per split at the default 250 per class, a couple
+# of hours at eight workers. Quotes the bill and asks before starting. The transcript is
+# written as it goes, so an interrupted run resumes rather than restarts.
 eval:
 	$(PY) scripts/run_eval.py --split validation
+
+eval-resume:
+	$(PY) scripts/run_eval.py --split validation --resume
 
 # Everything downstream of the model's confidence, recomputed from the committed transcript.
 # This is the target that makes the eval auditable: anyone can reproduce every number in

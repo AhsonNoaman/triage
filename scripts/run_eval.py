@@ -24,8 +24,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import threading
 import time
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -35,10 +37,14 @@ import numpy as np
 
 from triage.actions import Overlay
 from triage.agent import (
+    INPUT_COST_PER_MTOK,
+    MODEL,
+    OUTPUT_COST_PER_MTOK,
     Decision,
     Episode,
     MessagesClient,
     ToolBox,
+    TranscriptError,
     api_key_or_explain,
     read_transcript,
     run_episode,
@@ -58,6 +64,24 @@ from triage.scope import Label, Split
 ROOT = Path(__file__).resolve().parent.parent
 SEED = 20260810
 TARGET_FRR: tuple[float, ...] = (0.01, 0.02, 0.05, 0.10)
+
+#: Concurrency. Eight is the point where the run finishes in an evening without the account's
+#: rate limit becoming the thing being measured; raise it with --workers if the limit allows.
+DEFAULT_WORKERS = 8
+MAX_RETRIES = 6
+REQUEST_TIMEOUT_SECONDS = 900.0
+PROGRESS_EVERY = 10
+
+#: Rejection code for an episode that never reached the model. Distinct from every code the
+#: precondition layer emits, because it is missing data rather than a bad decision.
+API_ERROR = "api_error"
+
+#: Rough per-episode token cost, from the M5 stub runs and the prompt sizes: the system prompt
+#: and rendered complaint are about 1.5k tokens, each of up to five retrieved narratives adds
+#: 200-400, and adaptive thinking on a genuinely uncertain case runs long. Used only to price
+#: the run before it starts, so an unexpected bill is a surprise before the money and not after.
+ESTIMATED_INPUT_TOKENS = 14_000
+ESTIMATED_OUTPUT_TOKENS = 2_500
 
 
 def stratified(
@@ -99,70 +123,188 @@ def run_live(
     *,
     reveal_company: bool,
     transcript_path: Path,
-) -> list[Decision]:
-    """Call the model once per complaint, writing the transcript as it goes."""
+    workers: int,
+    resume: bool,
+) -> None:
+    """Call the model once per complaint and record the transcript. Scoring happens on replay.
+
+    Concurrent, because it has to be. An episode runs up to eight turns of adaptive thinking,
+    so the wall clock is one to three minutes; five hundred of those in series is most of a day
+    and nobody re-runs a day. At the default width the same run is a couple of hours.
+
+    Nothing is shared across threads but read-only structures. `Ontology` and `SimilarityIndex`
+    are immutable once built, `AgentView` holds only the ontology and the ablation flag, and the
+    `Overlay` that records retrievals and applies diffs is constructed per episode -- which it
+    already was, because an episode's overlay is its scratch space.
+
+    A single episode that fails is recorded as a failure and the run continues. Losing 499
+    completed episodes to one connection reset would be the most expensive possible way to
+    handle a transient error.
+    """
     import anthropic
 
-    client = anthropic.Anthropic(api_key=api_key_or_explain())
+    client = anthropic.Anthropic(
+        api_key=api_key_or_explain(),
+        # A long run will meet a rate limit and a timeout. The SDK retries with backoff; the
+        # default of two is tuned for interactive use and is not enough here.
+        max_retries=MAX_RETRIES,
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
     ontology = Ontology(list(corpus))
     view = AgentView(ontology, reveal_company=reveal_company)
     print("building the retrieval index over the training window", flush=True)
     index = SimilarityIndex(list(corpus))
     print(f"index holds {index.size:,} resolved complaints", flush=True)
 
-    decisions: list[Decision] = []
-    episodes: list[Episode] = []
-    started = time.monotonic()
-    for number, complaint in enumerate(sample, start=1):
-        overlay = Overlay()
+    recorded: dict[str, Episode] = {}
+    if resume and transcript_path.exists():
+        # Errored episodes are retried; completed ones are not re-bought.
+        recorded = {
+            e.complaint_id: e for e in read_transcript(transcript_path) if e.error is None
+        }
+        print(f"resuming: {len(recorded):,} episodes already recorded", flush=True)
+
+    todo = [c for c in sample if c.complaint_id not in recorded]
+    if not todo:
+        print("nothing to run; every complaint in the sample is already recorded", flush=True)
+        write_transcript(transcript_path, _in_sample_order(sample, recorded))
+        return
+
+    def one(complaint: Complaint) -> Episode:
         toolbox = ToolBox(
-            ontology=ontology, view=view, index=index, overlay=overlay,
+            ontology=ontology, view=view, index=index, overlay=Overlay(),
             complaint_id=complaint.complaint_id,
         )
-        decision, episode = run_episode(
-            # The protocol is deliberately narrower than the SDK's overloaded `create`, so
-            # a stub can drive the same loop in tests. mypy cannot see that a signature
-            # with named required keywords satisfies one taking **kwargs.
-            cast(MessagesClient, client.messages),
-            view=view.complaint(complaint.complaint_id),
-            toolbox=toolbox,
-        )
-        decisions.append(decision)
-        episodes.append(episode)
-        if number % 25 == 0 or number == len(sample):
-            spent = sum(d.cost_usd for d in decisions)
-            print(
-                f"  {number}/{len(sample)}  ${spent:.2f}  "
-                f"{time.monotonic() - started:.0f}s",
-                flush=True,
+        try:
+            _, episode = run_episode(
+                # The protocol is deliberately narrower than the SDK's overloaded `create`, so
+                # a stub can drive the same loop in tests. mypy cannot see that a signature
+                # with named required keywords satisfies one taking **kwargs.
+                cast(MessagesClient, client.messages),
+                view=view.complaint(complaint.complaint_id),
+                toolbox=toolbox,
             )
-            # Written incrementally: a run that dies at complaint 400 should not lose 399.
-            write_transcript(transcript_path, episodes)
-    write_transcript(transcript_path, episodes)
-    return decisions
+        except Exception as exc:
+            return Episode(
+                complaint_id=complaint.complaint_id, error=f"{type(exc).__name__}: {exc}"
+            )
+        return episode
+
+    lock = threading.Lock()
+    started = time.monotonic()
+    finished = 0
+    failed = 0
+    print(f"running {len(todo):,} complaints across {workers} workers", flush=True)
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for episode in pool.map(one, todo):
+            with lock:
+                recorded[episode.complaint_id] = episode
+                finished += 1
+                failed += episode.error is not None
+                if finished % PROGRESS_EVERY == 0 or finished == len(todo):
+                    spent = sum(
+                        float(e.result["input_tokens"]) * INPUT_COST_PER_MTOK / 1e6
+                        + float(e.result["output_tokens"]) * OUTPUT_COST_PER_MTOK / 1e6
+                        for e in recorded.values()
+                        if e.result is not None
+                    )
+                    elapsed = time.monotonic() - started
+                    rate = finished / elapsed if elapsed else 0.0
+                    remaining = (len(todo) - finished) / rate if rate else 0.0
+                    print(
+                        f"  {finished:,}/{len(todo):,}  ${spent:.2f}  "
+                        f"{elapsed / 60:.0f}m elapsed, {remaining / 60:.0f}m left"
+                        + (f"  ({failed} failed)" if failed else ""),
+                        flush=True,
+                    )
+                    # Written as it goes: a run that dies at 400 resumes rather than restarts.
+                    write_transcript(transcript_path, _in_sample_order(sample, recorded))
+
+    write_transcript(transcript_path, _in_sample_order(sample, recorded))
+    if failed:
+        print(
+            f"{failed:,} of {len(todo):,} episodes failed in transport. They are recorded with "
+            f"their error and excluded from scoring. Re-run with --resume to retry only those.",
+            file=sys.stderr,
+        )
+
+
+def _in_sample_order(
+    sample: Sequence[Complaint], recorded: dict[str, Episode]
+) -> list[Episode]:
+    """Transcript order follows the sample, not completion order, so a diff between two runs
+    lines up row for row."""
+    return [recorded[c.complaint_id] for c in sample if c.complaint_id in recorded]
 
 
 def replay(transcript_path: Path) -> list[Decision]:
-    """Rebuild decisions from a recorded run. No key, no network, no cost."""
+    """Rebuild decisions from a recorded run. No key, no network, no cost.
+
+    The scored result is read back off the episode rather than re-derived from the raw model
+    JSON, so a replay reproduces the live run's numbers exactly -- including token counts, which
+    no re-derivation could recover.
+    """
     decisions: list[Decision] = []
     for episode in read_transcript(transcript_path):
-        raw = episode.decision or {}
-        decisions.append(
-            Decision(
-                complaint_id=episode.complaint_id,
-                disposition=str(raw.get("disposition", "none")),
-                confidence=float(raw.get("confidence", 0.0)),
-                fields={k: v for k, v in raw.items() if k not in ("disposition", "confidence")},
-                turns=len(episode.responses),
-                tool_calls=0,
-                input_tokens=0,
-                output_tokens=0,
-                seconds=0.0,
-                accepted=bool(raw),
-                rejection=None if raw else "no_decision",
+        if episode.error is not None:
+            decisions.append(_failed(episode.complaint_id, episode.error))
+            continue
+        if episode.result is None:
+            raise TranscriptError(
+                f"{transcript_path}: episode {episode.complaint_id} has neither a result nor "
+                f"an error. It cannot be scored and it will not be guessed at."
             )
-        )
+        decisions.append(Decision(**episode.result))
     return decisions
+
+
+def _failed(complaint_id: str, error: str) -> Decision:
+    """A transport failure, kept in the transcript and out of the metrics.
+
+    Scoring it as a zero-confidence escalation would charge the agent for a connection reset;
+    dropping it silently would hide how much of the split never ran. It is carried through as a
+    distinct rejection code and excluded where the frontier is computed.
+    """
+    return Decision(
+        complaint_id=complaint_id, disposition="none", confidence=0.0, fields={"error": error},
+        turns=0, tool_calls=0, input_tokens=0, output_tokens=0, seconds=0.0,
+        accepted=False, rejection=API_ERROR,
+    )
+
+
+def confirm_spend(
+    n: int, resume: bool, transcript: Path, *, assume_yes: bool
+) -> bool:
+    """Price the run and ask, unless told not to.
+
+    Standing between a keystroke and a two-figure bill is worth four lines. The estimate is
+    deliberately an over-estimate: a run that comes in under its quote is a good surprise.
+    """
+    already = 0
+    if resume and transcript.exists():
+        already = sum(1 for e in read_transcript(transcript) if e.error is None)
+    remaining = max(n - already, 0)
+    per_episode = (
+        ESTIMATED_INPUT_TOKENS * INPUT_COST_PER_MTOK
+        + ESTIMATED_OUTPUT_TOKENS * OUTPUT_COST_PER_MTOK
+    ) / 1e6
+    print(
+        f"about to run {remaining:,} episodes against {MODEL}, roughly "
+        f"${remaining * per_episode:.0f} (${per_episode:.3f} each). "
+        f"Transcript: {transcript}",
+        flush=True,
+    )
+    if assume_yes:
+        return True
+    if not sys.stdin.isatty():
+        print(
+            "stdin is not a terminal, so there is nobody to ask. Re-run with --yes to "
+            "confirm the spend.",
+            file=sys.stderr,
+        )
+        return False
+    return input("type 'yes' to continue: ").strip().lower() == "yes"
 
 
 def report(
@@ -178,17 +320,25 @@ def report(
 ) -> None:
     """Write docs/eval.md and the frontier the plot reads, from the recorded confidences."""
     rng = np.random.default_rng(SEED)
-    ids = [d.complaint_id for d in decisions]
-    confidence = np.array([d.confidence for d in decisions], dtype=np.float64)
+    # An episode that never reached the model is missing data. Scoring it as a zero-confidence
+    # escalation would charge the agent for a connection reset and quietly depress every number
+    # below; it is dropped from the arithmetic and its count is stated instead.
+    unreached = [d for d in decisions if d.rejection == API_ERROR]
+    scored = [d for d in decisions if d.rejection != API_ERROR]
+    if not scored:
+        raise ValueError("every episode failed in transport; there is nothing to score")
+
+    ids = [d.complaint_id for d in scored]
+    confidence = np.array([d.confidence for d in scored], dtype=np.float64)
     needed = np.array([truth[i] for i in ids], dtype=np.int64)
     weight = np.array([weights[bool(truth[i])] for i in ids], dtype=np.float64)
 
-    n = len(decisions)
-    accepted = sum(1 for d in decisions if d.accepted)
+    n = len(scored)
+    accepted = sum(1 for d in scored if d.accepted)
     cost = sum(d.cost_usd for d in decisions)
     by_disposition: dict[str, int] = {}
     by_rejection: dict[str, int] = {}
-    for d in decisions:
+    for d in scored:
         by_disposition[d.disposition] = by_disposition.get(d.disposition, 0) + 1
         if d.rejection:
             by_rejection[d.rejection] = by_rejection.get(d.rejection, 0) + 1
@@ -209,6 +359,23 @@ def report(
         f"Model spend: **${cost:.2f}**"
         + (f", or ${cost / n:.4f} per complaint." if n else "."),
         "",
+    ]
+    if unreached:
+        share = len(unreached) / (n + len(unreached))
+        lines += [
+            f"**{len(unreached):,} episodes ({share:.1%}) never reached the model** and are "
+            f"excluded from every number below. They are in the transcript with their errors. "
+            f"A transport failure is missing data, not a wrong answer, and scoring it either "
+            f"way would be a claim the run cannot support"
+            + (
+                ". At this share the split is thin enough that the numbers below should be "
+                "treated as provisional; re-run with --resume."
+                if share > 0.02
+                else "."
+            ),
+            "",
+        ]
+    lines += [
         "## 1. What the agent did",
         "",
         "| Disposition | Complaints | Share |",
@@ -335,6 +502,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reveal-company", action="store_true")
     parser.add_argument("--replay", type=Path, help="re-score a recorded run; no key needed")
     parser.add_argument("--bootstrap", type=int, default=1000)
+    parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
+    parser.add_argument(
+        "--limit", type=int,
+        help="run only the first N of the sample. For a cheap smoke run before the real one.",
+    )
+    parser.add_argument(
+        "--resume", action="store_true",
+        help="keep episodes already in the transcript and run only what is missing",
+    )
+    parser.add_argument(
+        "--yes", action="store_true", help="skip the cost confirmation prompt",
+    )
     parser.add_argument("--raw", type=Path, default=ROOT / "data" / "raw" / RAW_FILENAME)
     parser.add_argument("--out", type=Path, default=ROOT / "docs" / "eval.md")
     args = parser.parse_args(argv)
@@ -355,23 +534,30 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     suffix = "-company" if args.reveal_company else ""
-    transcript = ROOT / "data" / "transcripts" / f"{args.split}{suffix}.jsonl"
+    transcript = args.replay or ROOT / "data" / "transcripts" / f"{args.split}{suffix}.jsonl"
 
-    if args.replay:
-        decisions = replay(args.replay)
-        missing = [d.complaint_id for d in decisions if d.complaint_id not in truth]
-        if missing:
-            print(
-                f"{len(missing)} complaints in the transcript are not in the sample this "
-                f"configuration would draw. The transcript was recorded with different "
-                f"settings; re-score it with the flags it was made with.",
-                file=sys.stderr,
-            )
+    if not args.replay:
+        if args.limit:
+            sample = sample[: args.limit]
+            truth = {c.complaint_id: c.needed_human for c in sample}
+            print(f"limited to the first {len(sample):,}", flush=True)
+        if not confirm_spend(len(sample), args.resume, transcript, assume_yes=args.yes):
             return 1
-    else:
-        decisions = run_live(
-            corpus, sample, reveal_company=args.reveal_company, transcript_path=transcript
+        run_live(
+            corpus, sample, reveal_company=args.reveal_company, transcript_path=transcript,
+            workers=args.workers, resume=args.resume,
         )
+
+    decisions = replay(transcript)
+    missing = [d.complaint_id for d in decisions if d.complaint_id not in truth]
+    if missing:
+        print(
+            f"{len(missing)} complaints in {transcript} are not in the sample this "
+            f"configuration would draw. The transcript was recorded with different settings; "
+            f"re-score it with the flags it was made with.",
+            file=sys.stderr,
+        )
+        return 1
 
     report(
         decisions, truth, weights,

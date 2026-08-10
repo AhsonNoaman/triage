@@ -129,12 +129,24 @@ class Decision:
 
 @dataclass
 class Episode:
-    """One complaint, start to finish, recorded well enough to replay."""
+    """One complaint, start to finish, recorded well enough to replay.
+
+    `decision` is the raw JSON the model returned; `result` is the scored `Decision` after its
+    action was re-checked against the preconditions, token counts and all. Recording the second
+    is what makes `make eval` and `make eval-replay` produce the same numbers by construction
+    rather than by two implementations agreeing -- and it keeps cost per resolved case
+    recoverable from the transcript alone, which a re-derivation from `decision` would not.
+
+    `error` carries a transport failure. An episode that never reached the model is missing
+    data, not a wrong answer, and the two must not be scored alike.
+    """
 
     complaint_id: str
     messages: list[dict[str, Any]] = field(default_factory=list)
     responses: list[dict[str, Any]] = field(default_factory=list)
     decision: dict[str, Any] | None = None
+    result: dict[str, Any] | None = None
+    error: str | None = None
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), default=str)
@@ -235,10 +247,11 @@ def run_episode(
             if decision is None:
                 continue
             episode.decision = decision
-            return (
-                _finalise(view, decision, toolbox, turn, input_tokens, output_tokens, started),
-                episode,
+            scored = _finalise(
+                view, decision, toolbox, turn, input_tokens, output_tokens, started
             )
+            episode.result = asdict(scored)
+            return scored, episode
 
         messages.append({"role": "assistant", "content": response.content})
         results: list[ToolResultBlockParam] = [
@@ -252,24 +265,23 @@ def run_episode(
         messages.append({"role": "user", "content": results})
         episode.messages = [_message_json(m) for m in messages]
 
-    return (
-        Decision(
-            complaint_id=view.complaint_id,
-            disposition="none",
-            # An agent that never decided has told us nothing, and the base rate is what
-            # "nothing" is worth. Defaulting to 1.0 would auto-resolve every failed episode.
-            confidence=0.0,
-            fields={},
-            turns=max_turns,
-            tool_calls=len(toolbox.calls),
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            seconds=time.monotonic() - started,
-            accepted=False,
-            rejection="no_decision",
-        ),
-        episode,
+    undecided = Decision(
+        complaint_id=view.complaint_id,
+        disposition="none",
+        # An agent that never decided has told us nothing, and the base rate is what
+        # "nothing" is worth. Defaulting to 1.0 would auto-resolve every failed episode.
+        confidence=0.0,
+        fields={},
+        turns=max_turns,
+        tool_calls=len(toolbox.calls),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        seconds=time.monotonic() - started,
+        accepted=False,
+        rejection="no_decision",
     )
+    episode.result = asdict(undecided)
+    return undecided, episode
 
 
 def _finalise(
@@ -347,6 +359,8 @@ def read_transcript(path: Path) -> Iterator[Episode]:
                     messages=raw.get("messages", []),
                     responses=raw.get("responses", []),
                     decision=raw.get("decision"),
+                    result=raw.get("result"),
+                    error=raw.get("error"),
                 )
             except (json.JSONDecodeError, KeyError, TypeError) as exc:
                 raise TranscriptError(f"{path}:{number} is not a usable episode: {exc}") from exc

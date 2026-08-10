@@ -784,6 +784,65 @@ alike, from one implementation, for the reason in that module's docstring.
 
 ---
 
+### D26 — A transport failure is excluded from the metrics, not scored as a wrong answer
+
+An episode that never reached the model is recorded with its error, kept in the transcript, and
+dropped from every number in `docs/eval.md`. The count and the share are printed at the top of
+the report, and above 2% the report says in its own text that the numbers are provisional.
+
+**Rejected: score it as a zero-confidence escalation.** Tidier — every sampled complaint keeps a
+row, and the denominators stay round. It also charges the agent for a connection reset. At the
+conservative end of the frontier, where the operating point is chosen from few records, a
+handful of imputed zeros moves the published auto-resolution rate by more than any prompt change
+in this project.
+
+**Rejected: drop it silently.** Then the split is quietly smaller than it says, and nothing in
+the artifact records that. Missing data is a fact about the run, and a run that hides how much
+of itself did not happen is not auditable.
+
+The distinction is that a transport failure is *missing data* and an undecided episode is a
+*result*. An agent that burned eight turns without producing a decision told us something real,
+and it stays in at confidence 0.0 (D19). A socket that closed told us nothing.
+
+### D27 — The eval runs concurrently, and every episode is written as it completes
+
+Eight workers by default. An episode is up to eight turns of adaptive thinking, so it takes one
+to three minutes of wall clock; five hundred in series is most of a day. This is not a
+performance nicety — the non-negotiable in the brief is that the eval gets *run*, and an eval
+that takes a day is one that gets run once, never re-run after a bug, and therefore quietly
+becomes an eval that shipped without a trustworthy run.
+
+Concurrency is safe here only because the object layer was already built immutable: `Ontology`
+and `SimilarityIndex` are read-only after construction, and the `Overlay` that records
+retrievals and applies diffs is per-episode scratch space. That was decided at M3 for
+legibility, not for threading, and it paid twice.
+
+The transcript is rewritten in sample order after every ten completions, so a run killed at 400
+of 500 resumes for the price of the remaining 100. Sample order rather than completion order,
+so two runs of the same configuration diff row for row.
+
+**Rejected: the Batches API.** Half the price and the right shape for a fixed set of prompts.
+It cannot run a tool loop — each episode is a conversation whose next request depends on what a
+tool returned — so it would mean giving up `simulate_action`, which is the mechanism the whole
+precondition design rests on. A 50% saving is not worth deleting the thing being measured.
+
+### D28 — The run is priced and confirmed before it starts, and there is a ten-complaint smoke run
+
+`make eval` prints its estimated bill and waits for a typed confirmation; `make eval-smoke` runs
+ten complaints for about a dollar. Everything the full run touches — the key, the rate limit,
+the tool loop, the output schema, the transcript writer, the scorer — runs in the smoke path
+first.
+
+This is a product decision, not a convenience. The failure it prevents is discovering at
+complaint 480 that the schema rejects a field, and it costs four lines. In a non-interactive
+shell the confirmation refuses rather than blocking on stdin, because a job that looks hung is
+worse than one that says why it stopped.
+
+Related: `make eval` and `make eval-replay` cannot disagree, because the live path scores
+nothing. It records the full scored `Decision` on each episode and then the report is computed
+by replaying the transcript it just wrote — the same code path, on the same bytes, that anyone
+without a key runs. Two implementations that agree today are two implementations that can drift.
+
 ## Open, pending M0 discovery
 
 Three conversations with support operations or complaint-handling practitioners are not yet
