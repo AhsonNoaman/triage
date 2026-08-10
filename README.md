@@ -82,13 +82,17 @@ sample is committed for exactly this.
 
 ```
 git clone <this repo> && cd triage
-make setup      # venv + dependencies from public PyPI (~2 min)
-make check      # ruff, mypy --strict, 220 tests (~5s)
+make setup      # venv + dependencies from public PyPI
+make check      # ruff, mypy --strict, 220 tests (~15s cold)
 ```
 
-`make check` green means the object model, the precondition layer, the retrieval leakage guards,
-the metric arithmetic and the agent loop all work on your machine. The agent loop is exercised
-by a stub client, so the real control flow runs without a key.
+Expect `219 passed, 1 skipped` — the skip is the plot smoke test, which needs an artifact
+`make premise` builds and the repo does not commit. Green means the object model, the
+precondition layer, the retrieval leakage guards, the metric arithmetic and the agent loop all
+work on your machine. The agent loop is driven by a stub client, so the real control flow runs
+without a key.
+
+This path is verified from a clean clone, not assumed. It caught a missing dependency.
 
 To go further:
 
