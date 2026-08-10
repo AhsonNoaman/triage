@@ -10,10 +10,10 @@ No network, no API key: `data/sample/complaints_sample.jsonl.gz` is committed.
 from __future__ import annotations
 
 import collections
-from pathlib import Path
 
 import pytest
 
+from tests.conftest import SAMPLE
 from triage.ingest.records import API_FIELDS, parse
 from triage.ingest.store import read_raw
 from triage.scope import (
@@ -24,7 +24,6 @@ from triage.scope import (
     Split,
 )
 
-SAMPLE = Path(__file__).resolve().parent.parent / "data" / "sample" / "complaints_sample.jsonl.gz"
 RETIRED_LABEL = "Credit card or prepaid card"
 
 
