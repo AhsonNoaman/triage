@@ -50,8 +50,8 @@ from triage.agent import (
     run_episode,
     write_transcript,
 )
-from triage.ingest.records import Complaint, parse
-from triage.ingest.store import RAW_FILENAME, read_raw
+from triage.ingest.records import Complaint
+from triage.ingest.store import RAW_FILENAME, load_corpus
 from triage.metrics import (
     best_at_frr,
     bootstrap_arr,
@@ -110,11 +110,6 @@ def stratified(
         weights[needed] = len(pool) / take
     sample.sort(key=lambda c: c.complaint_id)
     return sample, weights
-
-
-def load_corpus(path: Path) -> list[Complaint]:
-    print(f"reading {path}", flush=True)
-    return [parse(record) for record in read_raw(path)]
 
 
 def run_live(
@@ -522,6 +517,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{args.raw} does not exist. Run `make fetch` first.", file=sys.stderr)
         return 1
 
+    print(f"reading {args.raw}", flush=True)
     corpus = load_corpus(args.raw)
     split = Split(args.split)
     pool = [c for c in corpus if c.split is split]

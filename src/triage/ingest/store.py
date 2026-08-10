@@ -54,6 +54,16 @@ def read_raw(path: Path) -> Iterator[dict[str, Any]]:
             yield record
 
 
+def load_corpus(path: Path) -> list[Complaint]:
+    """Read and parse the whole gzipped corpus into memory.
+
+    Every consumer of the full corpus wants exactly this, and it is small enough to hold:
+    396,952 parsed records is a few hundred megabytes, against a retrieval index that has to
+    see all of them at once anyway.
+    """
+    return [parse(record) for record in read_raw(path)]
+
+
 def parse_all(records: Iterable[dict[str, Any]]) -> Iterator[Complaint]:
     """Parse records, letting any failure surface with its complaint id.
 
