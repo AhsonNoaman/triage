@@ -1,0 +1,25 @@
+# Data — the full fetch is rebuilt on demand, only the sample is committed
+data/raw/
+data/*.duckdb
+data/*.parquet
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Secrets — the eval needs an API key and it never lands in the repo
+.env
+.env.local
+
+# Node
+node_modules/
+.next/
+out/
+
+# OS
+.DS_Store
