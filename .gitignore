@@ -1,3 +1,6 @@
+# Working notes and the source brief — kept beside the repo, not published in it
+.local/
+
 # Data — the full fetch is rebuilt on demand, only the sample is committed
 data/raw/
 data/*.duckdb

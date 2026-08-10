@@ -3,6 +3,11 @@
 Every non-obvious choice, what was rejected, and why. Dated by milestone. Includes the ones
 that went wrong.
 
+From M1 onward, a revised decision gets a new dated entry rather than an edit to the entry above.
+Three entries below (D3, D4, D7) carry an **Amended** note instead: they were written and then
+overturned within M0 by a second measurement pass on the same day, and superseding entries for
+same-session drafts would be noise rather than history. The amendments are marked in place.
+
 ---
 
 ## M0 — 2026-08-10
@@ -47,8 +52,16 @@ respond*.
 
 ### D3 — Scope to consumer banking and cards
 
+**Amended later at M0, twice.** The count and rate below were both wrong: the product filter was
+missing a retired taxonomy label (see D11), and the relief rate quoted only the monetary half of
+the label defined in D4. Corrected figures: **five raw product labels collapsing to four
+canonical products, 397,945 in-scope narrative complaints over 2021-2025 of which 326,691 fall
+in the three retained split windows, at a 20.3-26.8% relief rate depending on split.** The scope
+decision itself stands.
+
 **Chosen:** credit card, checking or savings, prepaid card, money transfer. Narratives only,
-2021-2025. Roughly 337,000 complaints at an ~11% relief rate.
+2021-2025. 397,945 complaints across five raw product labels, at a 20.3-26.8% relief rate
+depending on split.
 
 **Rejected:** all products (2.4M narrative complaints, 88% credit reporting, ~0.5% positive
 class); banking plus credit reporting carried as a named negative case.
@@ -69,13 +82,19 @@ where the real support cost sits, in which case the interesting product is a dif
 
 ### D4 — Ground truth is under-served relief, not monetary relief
 
-**Chosen:** a false resolution is a complaint auto-resolved as `explanation_only` where the
-company granted relief of any kind.
+**Amended later at M0.** The definition below said "relief of any kind" without enumerating the
+outcome vocabulary, which left the treatment of `Untimely response` and `In progress` implicit.
+Both are now **excluded from the eval** rather than mapped to a class, and the exhaustive
+value-by-value mapping with counts is DESIGN.md §3.1-3.2. The direction of the decision is
+unchanged.
 
-**Rejected:** the brief's "monetary relief, or consumer disputed"; a composite including the
-`timely` flag.
+**Chosen:** a false resolution is a complaint the agent auto-closed with an explanation where the
+company granted relief of any kind — monetary **or non-monetary**.
 
-**Why:** two reasons, and the first is the one that matters.
+**Rejected:** the brief's "monetary relief, or consumer disputed"; monetary relief alone; a
+composite including the `timely` flag.
+
+**Why:** three reasons, and the first is the one that matters.
 
 A $35 fee reversal is among the most automatable actions in consumer banking — a policy lookup
 against a dollar threshold. Treating monetary relief as the definition of *a human was needed*
@@ -83,14 +102,35 @@ would tune the operating point to escalate the cheap rule-governed cases and aut
 ambiguous ones. The metric would point the wrong way, and it would do so invisibly, because the
 resulting curve would still look like a curve.
 
-`timely` was measured at 99.55% `Yes` in 2025. It contributes no signal and would only add a
-variable that does nothing.
+Including non-monetary relief is the substantive half of this. It is 11.09% of the train window,
+larger than monetary relief in credit card complaints (17.4% against 16.2%), and it covers the
+frozen account, the corrected record, the reversed adverse action — cases where an automated
+closure withholds something the company itself decided to do, and where the customer harm is
+often larger than a withheld refund. Excluding it also roughly halves the positive class: on the
+validation split, from 20.66% to 12.72%; on the train window, from 26.83% to 15.74%. That is the
+difference between a curve estimable from a few hundred samples and one that is not.
 
-**Known limitation, recorded rather than discovered later:** the recorded outcome is the
-company's self-report of what it did. A complaint closed with explanation where relief *should*
-have been granted scores as a correct auto-resolution. The metric measures agreement with actual
-handling, not with justice. A company granting relief did so at its own cost, which makes the
-positive direction conservative; the negative direction is not.
+`timely` was measured at 98.95% `Yes` on the in-scope slice. It contributes no signal and
+measures the company's deadline compliance rather than the complaint's merit.
+
+**Known limitation, recorded rather than discovered later.** `company_response` records what the
+company **did**, not what was warranted. Three consequences:
+
+1. A complaint closed with an explanation where relief *should* have been granted scores as a
+   correct auto-resolution. The metric measures agreement with actual handling, not with justice.
+2. Companies grant relief for reputational and regulatory reasons as well as on the merits. A
+   goodwill credit issued to quiet a noisy complaint scores identically to one issued because the
+   customer was right.
+3. It is a self-report with no adjudication attached.
+
+So the model predicts **company behaviour, not adjudicated correctness.** For this product that
+is still the right target — the decision being automated is "close with an explanation, or route
+to someone with authority to grant relief", and company behaviour is exactly what determines
+whether that routing was needed. But the README states the narrow claim, and states it before a
+reviewer states it for us.
+
+One asymmetry is kept: a company granting relief did so at its own cost, which makes the positive
+direction conservative. The negative direction is not conservative, and nothing here makes it so.
 
 **Could be reversed by:** a support operator saying that in their experience the relief decision
 is the automatable part and the escalation trigger is something else entirely — sentiment,
@@ -144,21 +184,33 @@ escalation signal.
 
 ### D7 — Time-based splits, and the operating point is chosen on validation
 
-**Chosen:** train/dev 2021-01-01 to 2024-06-30; validation 2024-07-01 to 2024-12-31; test
-2025-01-01 to 2025-06-30. τ is chosen on validation and reported on test, and every number says
-which split produced it.
+**Amended later at M0.** The boundaries below were wrong: they put the January 2025 bulk-
+submission event (D12) inside the test window, where it would have dominated every reported
+number. Corrected boundaries: **train 2021-01-01 to 2024-12-31; 2025-01-01 to 2025-02-28
+excluded; validation 2025-03-01 to 2025-06-30; test 2025-07-01 to 2025-12-31.** The principle
+below is unchanged and is what caught the problem.
 
-**Rejected:** a random split.
+**Chosen:** time-ordered splits, never random. τ is chosen on validation and reported on test,
+and every number says which split produced it.
+
+**Rejected:** a random split. Also rejected: keeping the original boundaries and noting the
+anomaly as a limitation.
 
 **Why:** `Closed with non-monetary relief` moved from 12.4% before April 2017 to 40.6% in 2025.
 The label distribution drifts continuously, so a random split trains on the future and
 overstates everything downstream. Choosing the threshold on the same split it is reported on
 would be the same error wearing a different hat.
 
+The corrected boundaries also buy something the original did not: validation and test are now
+adjacent and their base rates agree to 0.3 points — 20.66% against 20.34%. An operating point
+chosen on one transfers to the other on a like-for-like population. Under the original
+boundaries, validation sat at 25.81% and test at 10.46%.
+
 The `similar_to` retrieval link carries the same risk in a subtler form: retrieval must never
 reach forward into a later split. That guard gets its own tests at M3.
 
-**Could be reversed by:** nothing.
+**Could be reversed by:** nothing on the principle. The boundaries themselves move if a later
+window shows another regime change.
 
 ---
 
@@ -221,15 +273,248 @@ at offboarding, which removes the point of the artifact.
 
 ---
 
+### D11 — `product` is not a stable key; five raw labels collapse to four canonical products
+
+**Chosen:** `Product` carries a canonical slug and a `labels` alias list. The in-scope filter
+matches five raw strings, including the retired `Credit card or prepaid card`.
+
+**Rejected:** filtering on the four current product strings, which is what the first version of
+this design did.
+
+**Why:** the CFPB re-versions its product taxonomy without restating history.
+`Credit card or prepaid card` carries 16,607 / 21,512 / 21,283 in-scope narrative complaints in
+2021 / 2022 / 2023 and exactly zero from 2024 on. The naive filter drops 59,402 of the 154,088
+in-scope complaints filed before 2024 — **39%** — and drops them **entirely from the training
+window**, which is where the `similar_to` retrieval corpus lives.
+
+The failure mode is the dangerous kind: the agent would have retrieved from a corpus with a
+three-year hole in it, every metric would still have computed, and nothing in the eval would have
+surfaced it. Found by aggregating on `product` and reading all fourteen buckets rather than
+assuming the four in the design were the four that exist.
+
+The same versioning affects credit reporting, which carries two labels for one product. Out of
+scope, but it confirms this is a property of the taxonomy rather than one bad label.
+
+**Could be reversed by:** nothing. The alias table is committed and its provenance is the
+measured bucket list.
+
+---
+
+### D12 — Two months are excluded, and the boundary is chosen on volume rather than outcome
+
+**Chosen:** 2025-01-01 to 2025-02-28 is excluded from every split. 71,254 in-scope narrative
+complaints.
+
+**Rejected:** keeping the window and noting it as a limitation; excluding January only;
+excluding by respondent rather than by date.
+
+**Why:** January 2025 carries 60,251 in-scope narrative complaints against a 2024 monthly
+baseline of 5,964 to 7,500 — nine times normal — at a 3.8% relief rate against a ~25% baseline.
+It is concentrated in two respondents: Block, Inc. is 31.7% of all in-scope 2025 H1 complaints
+against 3.0% of 2024 H2, and Early Warning Services 14.9% from outside the top twelve respondents
+of 2024 H2. By 2025 H2 Block is back to 8.0%. February is still 1.7× baseline; from March the
+monthly count returns to the band it holds for the rest of the year.
+
+**The boundary is chosen on volume, and this is the load-bearing part of the decision.** Volume
+is visible without looking at any label, so the cut is not the result of peeking at relief rates
+and trimming until the splits agreed. The relief rates are reported as a consequence of the cut.
+Had the boundary been chosen on the relief rate, the resulting agreement between validation and
+test would be an artifact of the choice rather than evidence for it.
+
+Excluding by respondent was rejected because it would remove Block and Early Warning from every
+window, including the ones where their traffic is ordinary — which discards real complaints to
+fix a problem that is confined to two months.
+
+**Could be reversed by:** a discovery conversation establishing that bulk submission waves are a
+routine feature of the queue rather than an anomaly, in which case excluding them makes the eval
+easier than the job.
+
+---
+
+### D13 — `IssueCategory` is a four-tuple; `Resolution` stays an object to make withholding structural
+
+**Chosen:** `IssueCategory` identity is `(product_id, sub_product, issue, sub_issue)`.
+`Resolution` is a distinct object reached by a distinct link.
+
+**Rejected:** keying `IssueCategory` on `issue` alone; folding `Resolution`'s three fields onto
+`Complaint`.
+
+**Why:** the issue vocabulary is per-product and reuses wording across products. The train window
+contains both `Closing an account` and `Closing your account` — the same concept under two
+product vocabularies, falling under two different regulations. Keying on `issue` alone merges
+them and makes `governed_by` ambiguous, which would corrupt the one precondition the citation
+metric depends on. 44 distinct `issue` values occur in the train window; the tuple space is
+enumerated from data at M1 rather than authored.
+
+`Resolution` stays an object for a reason beyond object-count bookkeeping: **it is the only
+object the agent must never see.** A distinct object with a distinct link means the withholding
+is structural — `traverse_links` refuses `resolved_as` in agent context — rather than a
+field-name blocklist that a later schema change silently defeats. The strongest guarantee in the
+eval is the one enforced by the type system rather than by a string comparison.
+
+**Could be reversed by:** nothing foreseeable.
+
+---
+
+### D14 — The agent sees intake-time fields only
+
+**Chosen:** the agent's view of a `Complaint` is `complaint_id`, `date_received`, `product`,
+`sub_product`, `issue`, `sub_issue`, narrative, `company`, `state`, `zip_prefix`, `tags`,
+`submitted_via`. Everything else is withheld by the ontology.
+
+**Rejected:** withholding only `company_response`.
+
+**Why:** a field that did not exist when the triage decision was made cannot be an input to it.
+`company_response` is the obvious case, but three others are post-hoc and less obvious:
+`company_public_response` is the company's own commentary on a case it has already worked,
+`timely` records whether it met a deadline that had not yet passed, and `date_sent_to_company`
+postdates intake. None is the label, and all three would leak.
+
+Derived company features carry the same hazard in a subtler form: `Company.relief_rate` computed
+over the full history is a label aggregate reaching forward across split boundaries. It is
+computed per split from that split's past only.
+
+**Open, and not settled here:** whether the agent should see the `company` name at all. It is
+strongly predictive, a real triage system plainly knows the respondent, and the categorical
+baseline already includes it. The recommendation is to show the name, withhold the derived relief
+rate, and run a redacted-company ablation on validation only. See
+[docs/open-questions.md](docs/open-questions.md) C7.
+
+---
+
+### D15 — The confidence is `P(no relief)`, and the threshold is a routing rule
+
+**Chosen:** `c = P(the recorded company_response granted no relief)`. Auto-close iff the agent
+proposed `resolve` **and** `c ≥ τ`; a proposed `resolve` with `c < τ` is converted to an
+escalation at the routing layer.
+
+**Rejected:** confidence in the agent's own chosen action (uncheckable against the label);
+confidence as a free-form self-rating (uncalibratable by construction); reducing the decision to
+the scalar alone, ignoring which action the agent proposed.
+
+**Why:** the brief requires "a calibrated confidence" without saying what it is a probability of,
+and calibration is undefined until that is pinned. This choice makes it directly checkable
+against `Resolution.needed_human`.
+
+It also produces a property that is worth having as a sanity check on the whole design: **the
+false-resolution rate at threshold τ is exactly the miscalibration in the tail above τ**, so if
+`c` is perfectly calibrated the false-resolution rate at τ is bounded by `1 − τ`. The frontier
+curve is a direct read of the calibration curve — which is why measuring calibration (D16) is
+not an add-on but the thing that makes the curve mean anything.
+
+Keeping the agent's proposed action in the routing rule, rather than thresholding `c` alone,
+means an agent that judges a case unsuitable is referred regardless of how confident it is about
+the outcome. Its judgement stays in the loop instead of being collapsed to a number.
+
+**Could be reversed by:** nothing.
+
+---
+
+### D16 — Calibration is measured before the sweep is believed
+
+**Chosen:** reliability diagram, weighted ECE and Brier on validation. If ECE > 0.05, fit Platt
+scaling on validation, freeze it before τ is chosen, apply it unchanged to test, and publish both
+the raw and calibrated frontiers.
+
+**Rejected:** assuming the emitted confidence is calibrated; isotonic regression at this sample
+size; fitting the calibrator on test.
+
+**Why:** stated confidence from a language model usually is not calibrated, and by D15 the entire
+frontier is a function of calibration. An uncalibrated threshold is an arbitrary scale wearing a
+probability's clothes. The check costs nothing — it is the same post-hoc arithmetic over recorded
+confidences that makes the sweep free.
+
+Platt rather than isotonic because two parameters is the right complexity at n = 500; isotonic on
+500 points fits noise. Publishing both frontiers because a calibration step that silently
+improves the headline number is a step nobody can audit.
+
+**Could be reversed by:** a validation ECE under 0.05, in which case no calibrator is fitted and
+that fact is reported.
+
+---
+
+### D17 — Three actions, no `grant_relief`, and `request_information` is scored inside `n_ref`
+
+**Chosen:** the agent can close with an explanation, escalate, or ask the consumer for one named
+missing fact. It has no action that moves money or corrects a record. `request_information` is
+counted inside the referred population `n_ref` and its share is printed at every operating point.
+
+**Rejected:** a fourth action granting relief; scoring `request_information` as an escalation;
+excluding it from both denominators; dropping the third action.
+
+**Why:** the decision this product automates is "close this, or route it to someone with
+authority" — so the worst outcome the agent can produce should be a wrongly-closed case, never a
+wrongly-paid one. Withholding `grant_relief` also keeps the label binary and scoreable: the
+agent's view of *what relief is due* becomes a routing signal rather than an action needing its
+own ground truth.
+
+`request_information` has no ground truth at all. The CFPB record contains no observation of what
+happens when a consumer is asked a question. Scoring it as an escalation credits the agent for
+identifying a case it did not resolve; excluding it from both denominators lets the agent dump
+every hard case there and improve both headline numbers at once. Counting it inside `n_ref` with
+its share printed is the only treatment that cannot be gamed.
+
+The precondition that stops it becoming a hedge is `information_already_present`: the agent must
+name the specific obligation input the narrative does not supply — a transaction date, a dollar
+amount, a notification date — not ask a vague question about every hard case.
+
+**Could be reversed by:** discovery establishing that consumers are never re-contacted at this
+stage, in which case the third action is an artifact of the brief and should go.
+
+---
+
+### D18 — Stratified sampling with reweighting, and bands on the frontier
+
+**Chosen:** 250 relief / 250 no-relief per split, Horvitz–Thompson weights from the known
+population shares, bootstrap resampled within stratum at 2,000 replicates. Every published
+operating point prints `n_auto` and the positive count behind its false-resolution estimate.
+
+**Rejected:** 500 uniform draws per split; 1,000 uniform draws per split; a point estimate with
+no interval.
+
+**Why:** at a 20.7% positive class, 500 uniform draws yields ~104 positives, and the
+false-resolution numerator at the conservative end of the sweep — high τ, small `n_auto` — is a
+single-digit cell count. A curve drawn through those is not a curve. The stratified draw buys
+~2.4× the positives in the cell that binds at identical token cost, and it is unbiased under
+reweighting. The agent never sees `Resolution`, so it cannot detect which stratum a case came
+from.
+
+Two details recorded now because they are easy to get wrong later: **the weights must be applied
+to the ECE bins and the Platt fit**, or the calibrator targets a 50% base rate rather than the
+true 20.7% and makes things worse than no calibration at all; and the **bootstrap resamples
+within stratum**, holding the two counts fixed, because resampling the pooled sample would treat
+a design constant as random.
+
+If two candidate operating points have overlapping bands, the honest statement is that the data
+does not distinguish them, and that statement goes in the README rather than a point estimate
+chosen from noise.
+
+**Could be reversed by:** nothing on the method. The sample size moves if the validation bands
+turn out too wide, which is what the $40 reserve in DESIGN.md §5.7 is for.
+
+---
+
 ## Open, pending M0 discovery
 
 Three conversations with support operations or complaint-handling practitioners are not yet
 held. The decisions above that those conversations could reverse:
 
-- **D4**, the definition of a false resolution — the most exposed.
+- **D4**, the definition of a false resolution — the most exposed. If the relief decision is the
+  cheap scripted part and the expensive judgement lives in tone, repeat contact, or regulatory
+  exposure, the label is inverted.
 - **D3**, product scope, if credit-report disputes turn out to be where support cost actually
   concentrates.
+- **D12**, the excluded window, if bulk submission waves are a routine feature of the queue
+  rather than an anomaly — in which case excluding them makes the eval easier than the job.
+- **D17**, the third action, if consumers are never re-contacted at this stage.
 - The operating point itself, which is currently argued from recorded outcomes rather than from
   anyone's stated tolerance for a wrong auto-resolution.
 
-Questions are in [docs/interview-guide.md](docs/interview-guide.md), written to falsify.
+Also open, but decidable without discovery, and named in
+[docs/open-questions.md](docs/open-questions.md): whether the agent sees the company name (C7),
+and what `similar_to` retrieves on (C8). Both are settled at M3 and M5 against measurements
+rather than by interview.
+
+Discovery questions are in [docs/interview-guide.md](docs/interview-guide.md), written to
+falsify. Objections to the brief that measurement did not settle are in
+[docs/pushback.md](docs/pushback.md).
