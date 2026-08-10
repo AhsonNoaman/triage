@@ -309,3 +309,28 @@ def test_a_missing_api_key_explains_the_cost_and_the_alternative(
         api_key_or_explain()
     assert "--replay" in str(exc.value)
     assert "ANTHROPIC_API_KEY" in str(exc.value)
+
+
+def test_the_eval_refuses_to_run_against_a_gateway_that_is_not_the_public_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The SDK reads ANTHROPIC_BASE_URL from the environment.
+
+    This repository was built on a machine whose shell points that variable at a corporate
+    gateway. Without this check, `make eval` there would send every complaint, prompt and
+    transcript through an employer's infrastructure and bill them for it, and no artifact in the
+    repo would record that it had happened.
+    """
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-whatever")
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://genai-api.example-corp.com")
+    with pytest.raises(RuntimeError, match="not the public API"):
+        api_key_or_explain()
+
+
+def test_the_public_api_is_accepted_however_it_is_spelled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-whatever")
+    for spelling in ("", "https://api.anthropic.com", "https://api.anthropic.com/"):
+        monkeypatch.setenv("ANTHROPIC_BASE_URL", spelling)
+        assert api_key_or_explain() == "sk-ant-whatever"

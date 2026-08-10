@@ -123,6 +123,11 @@ make eval-resume  # continue an interrupted run without re-buying what completed
 make eval-replay  # re-score the recorded transcript. Free, no key, no network.
 ```
 
+If `ANTHROPIC_BASE_URL` is set to anything but the public API, the eval refuses to start
+([D30](DECISIONS.md)). A corporate gateway in your shell would otherwise route the complaints,
+the prompts, the transcript and the bill somewhere this repository does not disclose, and the
+generated report would look identical either way.
+
 `make eval` and `make eval-replay` cannot disagree: the live path records the scored result on
 each episode and the report is produced by replaying the transcript it just wrote. Anyone can
 reproduce every published number from the committed transcript without spending anything.
@@ -206,7 +211,7 @@ tests/               220 tests
 | Document | What it is |
 |---|---|
 | [DESIGN.md](DESIGN.md) | the object model, the actions, the metric definitions |
-| [DECISIONS.md](DECISIONS.md) | 29 decisions: what was chosen, what was rejected, and the mistakes |
+| [DECISIONS.md](DECISIONS.md) | 30 decisions: what was chosen, what was rejected, and the mistakes |
 | [docs/data-quality.md](docs/data-quality.md) | what the corpus actually contains, measured |
 | [docs/premise.md](docs/premise.md) | the baselines, and whether the premise survives them |
 | [docs/name-leak.md](docs/name-leak.md) | how leaky company-blind is, measured both ways |

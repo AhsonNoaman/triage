@@ -366,13 +366,32 @@ def read_transcript(path: Path) -> Iterator[Episode]:
                 raise TranscriptError(f"{path}:{number} is not a usable episode: {exc}") from exc
 
 
+#: The only endpoint this project will talk to. Not a configuration knob.
+PUBLIC_API: Final[str] = "https://api.anthropic.com"
+
+
 def api_key_or_explain() -> str:
     """The key, or an error that says exactly what to do.
+
+    Also refuses to run against anything but the public API. The Anthropic SDK reads
+    ``ANTHROPIC_BASE_URL`` from the environment, so a shell configured for a corporate gateway
+    would silently route a portfolio artifact -- the complaints, the prompts, the transcript,
+    the bill and the telemetry -- through an employer's infrastructure, and nothing in the
+    output would record that it had happened. The machine this was built on is configured
+    exactly that way, which is why the check exists rather than being assumed unnecessary.
 
     Raises:
         RuntimeError: naming the variable and the cost, because "authentication failed" three
             hundred complaints into a paid run is the wrong time to find out.
     """
+    base = os.environ.get("ANTHROPIC_BASE_URL", "").strip().rstrip("/")
+    if base and base != PUBLIC_API:
+        raise RuntimeError(
+            f"ANTHROPIC_BASE_URL points at {base}, not {PUBLIC_API}. This eval will not run "
+            f"against a gateway that is not the public API: the complaints, the prompts, the "
+            f"transcript and the bill would all go somewhere this repository does not disclose. "
+            f"Unset ANTHROPIC_BASE_URL, or set it to {PUBLIC_API}."
+        )
     key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not key:
         raise RuntimeError(

@@ -883,6 +883,30 @@ So D24 stands with its claim narrowed: company-blind means the structured respon
 every statistic derived from it are withheld. It does not mean the agent is ignorant of who it
 is reading about, and [README.md](README.md) says so.
 
+### D30 — The eval refuses to run against anything but the public API
+
+The Anthropic SDK reads `ANTHROPIC_BASE_URL` from the environment. `api_key_or_explain` now
+rejects any value but `https://api.anthropic.com`, before it looks at the key.
+
+Not a hypothetical. The machine this was built on sets that variable to an employer's internal
+GenAI gateway, with a corporate org header and telemetry attached. `make eval` in that shell
+would have sent every complaint, every prompt, the whole transcript and the bill through
+infrastructure this repository does not disclose, produced `docs/eval.md` that looks identical
+either way, and left nothing in the artifact recording it. The portfolio constraint on this
+project is that it must still run, and still be mine, after I leave — and a result quietly
+produced through a work gateway fails that in a way no reader could detect.
+
+The check paid for itself immediately: adding it turned four eval tests red, because they had
+been inheriting the gateway from the ambient shell. A test whose result depends on whose laptop
+it runs on is not a test, so `tests/conftest.py` now clears the variable for the whole suite.
+
+**Rejected: a warning.** A warning on a two-hour run scrolls off the screen in the first
+minute.
+
+**Rejected: allow an override flag.** Every override exists to be used at 2am. There is no
+legitimate reason for *this* project to speak to a different endpoint, and a knob that only
+ever enables the wrong thing is not a feature.
+
 ## Open, pending M0 discovery
 
 Three conversations with support operations or complaint-handling practitioners are not yet
