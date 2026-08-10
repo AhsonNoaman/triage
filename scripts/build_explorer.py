@@ -54,11 +54,14 @@ TAU_STOPS = 400
 #: ungoverned one, and both outcomes, without turning the page into a corpus browser.
 TRACE_CASES = 6
 
+#: Curves reference CSS custom properties rather than literal hex, because the page is read on
+#: whatever ground the viewer's theme paints and the two darkest slates vanish on a dark one.
+#: SVG `stroke` resolves `var()`, so one set of curves serves both themes.
 DECIDERS: tuple[tuple[str, str, str], ...] = (
-    ("c_shape", "metadata shape only", "#b9b9b9"),
-    ("c_narrative", "narrative TF-IDF", "#7b9fd4"),
-    ("c_categorical", "categorical (incl. company)", "#4a6fa5"),
-    ("c_categorical_plus_narrative", "categorical + narrative", "#2f4a72"),
+    ("c_shape", "metadata shape only", "var(--s0)"),
+    ("c_narrative", "narrative TF-IDF", "var(--s1)"),
+    ("c_categorical", "categorical (incl. company)", "var(--s2)"),
+    ("c_categorical_plus_narrative", "categorical + narrative", "var(--s3)"),
 )
 
 
@@ -266,7 +269,7 @@ def pick(pool: list[Complaint], rng: np.random.Generator) -> list[Complaint]:
     return chosen
 
 
-def build(payload: dict[str, Any]) -> str:
+def build(payload: dict[str, Any], *, fragment: bool = False) -> str:
     """Inline the data into the page, with every `<` escaped out of the JSON.
 
     Narratives are free text that people typed, so one of them will eventually contain
@@ -276,9 +279,16 @@ def build(payload: dict[str, Any]) -> str:
     string it decodes back to the same character, and outside one it cannot occur.
     """
     blob = json.dumps(payload, separators=(",", ":")).replace("<", "\\u003c")
-    return TEMPLATE.replace("__DATA__", blob).replace(
+    page = TEMPLATE.replace("__DATA__", blob).replace(
         "__GENERATED__", html.escape(payload["generated"])
     )
+    if not fragment:
+        return page
+    # Hosts that supply their own document shell want the style and the content, not a second
+    # <html>. One source for both, so the hosted copy cannot drift from the repo's.
+    style = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    body = page.split("<body>\n", 1)[1].rsplit("</body>", 1)[0]
+    return f"<style>{style}</style>\n{body.rstrip()}\n"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -287,6 +297,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--scores", type=Path, default=ROOT / "data" / "baseline_scores.parquet")
     parser.add_argument("--raw", type=Path, default=ROOT / "data" / "raw" / RAW_FILENAME)
     parser.add_argument("--out", type=Path, default=ROOT / "docs" / "explorer.html")
+    parser.add_argument(
+        "--fragment", type=Path,
+        help="also write a version without the document shell, for a host that supplies one",
+    )
     args = parser.parse_args(argv)
 
     for path, fix in ((args.scores, "make premise"), (args.raw, "make fetch")):
@@ -353,6 +367,10 @@ def main(argv: list[str] | None = None) -> int:
     args.out.write_text(build(payload), encoding="utf-8")
     size = args.out.stat().st_size / 1024
     print(f"wrote {args.out} ({size:,.0f} KB, {len(cases)} traced complaints)", flush=True)
+    if args.fragment:
+        args.fragment.parent.mkdir(parents=True, exist_ok=True)
+        args.fragment.write_text(build(payload, fragment=True), encoding="utf-8")
+        print(f"wrote {args.fragment}", flush=True)
     return 0
 
 
@@ -364,9 +382,29 @@ TEMPLATE = """<!doctype html>
 <title>triage - the frontier, and one complaint</title>
 <style>
 :root {
+  /* Light is the base palette. Neutrals carry a faint warm bias so several thousand words of
+     complaint prose read as paper rather than as a console. */
   --ink: #1b1b1b; --muted: #6b6b6b; --faint: #9a9a9a;
-  --rule: #e4e4e4; --panel: #fafafa; --bg: #ffffff;
-  --relief: #b5533c; --norelief: #3f6b52; --accent: #2f4a72;
+  --rule: #e4e4e4; --panel: #fafafa; --bg: #ffffff; --grid: #f1f1f0;
+  --relief: #b5533c; --norelief: #3f6b52; --accent: #2f4a72; --onaccent: #ffffff;
+  --s0: #b9b9b9; --s1: #7b9fd4; --s2: #4a6fa5; --s3: #2f4a72; --s4: #c1553b;
+}
+/* The un-stamped default: most viewers never set a theme, so only the OS preference separates
+   the two. Guarded so an explicit light choice still beats a dark OS. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #e9e7e4; --muted: #a29e98; --faint: #6f6b66;
+    --rule: #302e2b; --panel: #1c1b19; --bg: #151412; --grid: #232220;
+    --relief: #dc8a6d; --norelief: #7cb495; --accent: #93b2dd; --onaccent: #151412;
+    --s0: #55524e; --s1: #6e93c8; --s2: #93b2dd; --s3: #c3d4ec; --s4: #dc8a6d;
+  }
+}
+/* And again for the explicit toggle, so it wins in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e9e7e4; --muted: #a29e98; --faint: #6f6b66;
+  --rule: #302e2b; --panel: #1c1b19; --bg: #151412; --grid: #232220;
+  --relief: #dc8a6d; --norelief: #7cb495; --accent: #93b2dd; --onaccent: #151412;
+  --s0: #55524e; --s1: #6e93c8; --s2: #93b2dd; --s3: #c3d4ec; --s4: #dc8a6d;
 }
 * { box-sizing: border-box; }
 body {
@@ -389,14 +427,18 @@ code { font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace;
 .chartrow { display: grid; grid-template-columns: 1fr 250px; gap: 28px; align-items: start; }
 @media (max-width: 820px) { .chartrow { grid-template-columns: 1fr; } }
 svg { width: 100%; height: auto; display: block; touch-action: none; cursor: ew-resize; }
+.big, .mono, .tick, dl, .item .head { font-variant-numeric: tabular-nums; }
+button:focus-visible, input:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 .axis { stroke: var(--rule); stroke-width: 1; }
-.gridline { stroke: #f0f0f0; stroke-width: 1; }
+.gridline { stroke: var(--grid); stroke-width: 1; }
 .tick { fill: var(--faint); font-size: 10.5px; }
 .axlabel { fill: var(--muted); font-size: 11.5px; }
 .curve { fill: none; stroke-width: 1.8; }
 .curve.dim { opacity: 0.28; }
 .marker { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3; }
-.dot { stroke: #fff; stroke-width: 1.5; }
+.dot { stroke: var(--bg); stroke-width: 1.5; }
 
 .readout { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px;
            padding: 16px 16px 14px; }
@@ -407,7 +449,8 @@ svg { width: 100%; height: auto; display: block; touch-action: none; cursor: ew-
 input[type=range] { width: 100%; margin: 14px 0 4px; accent-color: var(--accent); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; }
 .legend button { font: inherit; font-size: 12.5px; padding: 4px 10px; cursor: pointer;
-  border: 1px solid var(--rule); background: #fff; border-radius: 100px; color: var(--muted); }
+  border: 1px solid var(--rule); background: var(--bg); border-radius: 100px;
+  color: var(--muted); }
 .legend button[aria-pressed=true] { color: var(--ink); border-color: currentColor; }
 .legend .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
   margin-right: 6px; vertical-align: baseline; }
@@ -415,9 +458,9 @@ input[type=range] { width: 100%; margin: 14px 0 4px; accent-color: var(--accent)
 /* trace */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
 .tabs button { font: inherit; font-size: 12.5px; padding: 5px 11px; cursor: pointer;
-  border: 1px solid var(--rule); background: #fff; border-radius: 4px; color: var(--muted);
+  border: 1px solid var(--rule); background: var(--bg); border-radius: 4px; color: var(--muted);
   font-variant-numeric: tabular-nums; }
-.tabs button[aria-pressed=true] { color: #fff; background: var(--accent);
+.tabs button[aria-pressed=true] { color: var(--onaccent); background: var(--accent);
   border-color: var(--accent); }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
 @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
@@ -509,7 +552,7 @@ const XMAX = Math.min(0.32, DATA.base_rate + 0.02);
 const series = DATA.deciders.map(d => ({...d, on: d.key !== 'c_shape'}));
 if (DATA.agent) {
   series.push({
-    key: 'agent', colour: '#c1553b', on: true,
+    key: 'agent', colour: 'var(--s4)', on: true,
     label: 'agent (' + (DATA.agent.reveal_company ? 'company-visible' : 'company-blind') + ')',
     points: DATA.agent.points,
   });
