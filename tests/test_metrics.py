@@ -238,3 +238,64 @@ def test_calibration_and_ranking_are_different_properties() -> None:
 def test_mismatched_lengths_raise() -> None:
     with pytest.raises(ValueError, match="2 entries but outcome has 1"):
         expected_calibration_error(arr(0.1, 0.2), labels(1))
+
+
+# --------------------------------------------------------------------------------------
+# Case-control weighting
+# --------------------------------------------------------------------------------------
+
+
+def test_unit_weights_reproduce_the_unweighted_curve_exactly() -> None:
+    """The weighted path is the same arithmetic, so it must agree where they overlap."""
+    c = arr(0.9, 0.8, 0.7, 0.6)
+    y = labels(0, 1, 0, 1)
+    plain = frontier(c, y)
+    weighted = frontier(c, y, np.ones(4))
+    for a, b in zip(plain, weighted, strict=True):
+        assert list(a) == list(b)
+
+
+def test_weights_restore_the_population_base_rate_from_a_balanced_sample() -> None:
+    """The reason case-control sampling is safe.
+
+    The eval draws equal numbers of each class so the rare one is not estimated from a handful
+    of records. That makes the sample 50% positive when the population is 20%, and every rate
+    read off it is wrong until the sampling is undone. Horvitz-Thompson weights of
+    N_stratum / n_stratum do that: each sampled negative stands for 400 population cases and
+    each positive for 100.
+
+    Four sampled cases, ranked correctly, at a 15% error budget. Weighted, the threshold at
+    0.7 admits 900 of 1,000 population cases at an 11.1% error rate. Unweighted, the same data
+    reports 2 of 4 -- because in the sample the third case is a third of what was admitted
+    rather than a ninth. Same records, same ranking, a 40-point difference in the headline.
+    """
+    c = arr(0.9, 0.8, 0.7, 0.6)
+    y = labels(0, 0, 1, 1)
+    w = np.array([400.0, 400.0, 100.0, 100.0])
+
+    weighted = best_at_frr(c, y, 0.15, w)
+    assert weighted is not None
+    assert weighted.n_eval == 1000.0
+    assert weighted.n_auto == 900.0
+    assert weighted.n_false == pytest.approx(100.0)
+    assert weighted.false_resolution_rate == pytest.approx(1 / 9)
+    assert weighted.auto_resolution_rate == pytest.approx(0.9)
+
+    plain = best_at_frr(c, y, 0.15)
+    assert plain is not None
+    assert plain.auto_resolution_rate == 0.5, "the sample's own rate, which is not the answer"
+
+
+def test_a_weighted_bootstrap_stays_within_the_unit_interval() -> None:
+    rng = np.random.default_rng(11)
+    n = 400
+    y = np.tile(labels(0, 1), n // 2)
+    c = np.where(y == 1, rng.random(n) * 0.6, 0.4 + rng.random(n) * 0.6)
+    w = np.where(y == 1, 100.0, 400.0)
+    lo, hi = bootstrap_arr(c, y, 0.1, draws=100, rng=np.random.default_rng(12), weights=w)
+    assert 0.0 <= lo <= hi <= 1.0
+
+
+def test_mismatched_weights_raise() -> None:
+    with pytest.raises(ValueError, match="weights has 2"):
+        frontier(arr(0.1, 0.2, 0.3), labels(0, 1, 0), np.ones(2))

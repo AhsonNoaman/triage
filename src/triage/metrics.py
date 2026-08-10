@@ -31,9 +31,9 @@ class OperatingPoint:
     """What auto-resolving at threshold ``tau`` gets you."""
 
     tau: float
-    n_auto: int
-    n_eval: int
-    n_false: int
+    n_auto: float
+    n_eval: float
+    n_false: float
 
     @property
     def auto_resolution_rate(self) -> float:
@@ -45,7 +45,9 @@ class OperatingPoint:
 
 
 def frontier(
-    confidence: np.ndarray, needed_human: np.ndarray
+    confidence: np.ndarray,
+    needed_human: np.ndarray,
+    weights: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Every distinct operating point as ``(tau, n_auto, n_false)``, most conservative first.
 
@@ -54,25 +56,36 @@ def frontier(
     end of a run of equal confidences. Splitting a tied run would report a threshold that
     cannot be implemented -- there is no rule that takes some of the cases at ``c = 0.9``.
 
+    ``weights`` supports case-control sampling. The eval draws equal numbers of each class so
+    the rare one is not estimated from a handful of records, which makes the sample's base rate
+    wrong on purpose; a Horvitz-Thompson weight of ``N_stratum / n_stratum`` puts it back. With
+    weights the counts are weighted sums and are floats, so a "count" of 1,247.5 is expected
+    and correct. Omitted, every record weighs 1 and the arithmetic is identical to counting.
+
     Returns arrays rather than objects because the bootstrap calls this tens of thousands of
     times.
 
     Raises:
-        ValueError: if the two arrays disagree in length, which otherwise silently truncates.
+        ValueError: if the arrays disagree in length, which otherwise silently truncates.
     """
     if len(confidence) != len(needed_human):
         raise ValueError(
             f"confidence has {len(confidence)} entries but needed_human has "
             f"{len(needed_human)}"
         )
+    if weights is not None and len(weights) != len(confidence):
+        raise ValueError(
+            f"confidence has {len(confidence)} entries but weights has {len(weights)}"
+        )
     n = len(confidence)
     if n == 0:
-        return np.empty(0), np.empty(0, dtype=np.int64), np.empty(0, dtype=np.int64)
+        return np.empty(0), np.empty(0), np.empty(0)
     order = np.argsort(-confidence, kind="stable")
     c = confidence[order]
-    y = needed_human[order].astype(np.int64)
+    y = needed_human[order].astype(np.float64)
+    w = np.ones(n) if weights is None else weights[order].astype(np.float64)
     last_of_run = np.append(np.flatnonzero(np.diff(c)), n - 1)
-    return c[last_of_run], last_of_run + 1, np.cumsum(y)[last_of_run]
+    return c[last_of_run], np.cumsum(w)[last_of_run], np.cumsum(w * y)[last_of_run]
 
 
 def best_index_at_frr(n_auto: np.ndarray, n_false: np.ndarray, target: float) -> int | None:
@@ -92,18 +105,22 @@ def best_index_at_frr(n_auto: np.ndarray, n_false: np.ndarray, target: float) ->
 
 
 def best_at_frr(
-    confidence: np.ndarray, needed_human: np.ndarray, target: float
+    confidence: np.ndarray,
+    needed_human: np.ndarray,
+    target: float,
+    weights: np.ndarray | None = None,
 ) -> OperatingPoint | None:
     """The most queue volume auto-resolvable while holding false resolutions at ``target``.
 
     Returns None when no threshold achieves the target -- which is a real answer, not an error.
     """
-    tau, n_auto, n_false = frontier(confidence, needed_human)
+    tau, n_auto, n_false = frontier(confidence, needed_human, weights)
     best = best_index_at_frr(n_auto, n_false, target)
     if best is None:
         return None
+    total = float(len(confidence) if weights is None else weights.sum())
     return OperatingPoint(
-        float(tau[best]), int(n_auto[best]), len(confidence), int(n_false[best])
+        float(tau[best]), float(n_auto[best]), total, float(n_false[best])
     )
 
 
@@ -113,6 +130,7 @@ def bootstrap_arr(
     target: float,
     draws: int,
     rng: np.random.Generator,
+    weights: np.ndarray | None = None,
 ) -> tuple[float, float]:
     """A 95% percentile interval for the auto-resolution rate achievable at ``target``.
 
@@ -128,9 +146,11 @@ def bootstrap_arr(
     rates = np.empty(draws)
     for draw in range(draws):
         idx = rng.integers(0, n, size=n)
-        _, n_auto, n_false = frontier(confidence[idx], needed_human[idx])
+        drawn = None if weights is None else weights[idx]
+        _, n_auto, n_false = frontier(confidence[idx], needed_human[idx], drawn)
         best = best_index_at_frr(n_auto, n_false, target)
-        rates[draw] = 0.0 if best is None else n_auto[best] / n
+        total = float(n if drawn is None else drawn.sum())
+        rates[draw] = 0.0 if best is None or total == 0 else n_auto[best] / total
     return float(np.percentile(rates, 2.5)), float(np.percentile(rates, 97.5))
 
 

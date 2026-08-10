@@ -8,7 +8,7 @@ PIP     := $(VENV)/bin/pip
 # outside one network can reach, which would make the README's install step a lie. See D20.
 INDEX   := https://pypi.org/simple/
 
-.PHONY: help setup fetch sample quality premise test typecheck lint check clean
+.PHONY: help setup fetch sample quality premise eval eval-replay plot test typecheck lint check clean
 
 help:
 	@echo "setup      create $(VENV) and install from public PyPI"
@@ -16,6 +16,9 @@ help:
 	@echo "sample     rebuild the committed offline sample from data/raw"
 	@echo "quality    regenerate docs/data-quality.md from data/complaints.parquet"
 	@echo "premise    regenerate docs/premise.md -- the baselines the agent has to beat"
+	@echo "eval       run the agent over a sampled split. NEEDS A KEY AND COSTS MONEY"
+	@echo "eval-replay  re-score the recorded run. free, no key, no network"
+	@echo "plot       redraw docs/frontier.png from whatever has been measured"
 	@echo "test       pytest"
 	@echo "typecheck  mypy --strict"
 	@echo "lint       ruff"
@@ -38,6 +41,21 @@ quality:
 
 premise:
 	$(PY) scripts/premise_test.py
+
+# The only target that spends money. Roughly $30-60 per split at the default 250 per class.
+# Writes data/transcripts/<split>.jsonl as it goes, so a run that dies is re-scorable and
+# resumable rather than lost.
+eval:
+	$(PY) scripts/run_eval.py --split validation
+
+# Everything downstream of the model's confidence, recomputed from the committed transcript.
+# This is the target that makes the eval auditable: anyone can reproduce every number in
+# docs/eval.md without a key.
+eval-replay:
+	$(PY) scripts/run_eval.py --split validation --replay data/transcripts/validation.jsonl
+
+plot:
+	$(PY) scripts/plot_frontier.py
 
 test:
 	$(VENV)/bin/pytest
