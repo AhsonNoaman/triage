@@ -529,7 +529,8 @@ defence is an independent total to reconcile against.
 
 **Rejected:** relying on the machine's default index; committing a `pip.conf`; vendoring wheels.
 
-**Why:** `/etc/pip.conf` on the machine this was built on points at a corporate Artifactory mirror. Installing
+**Why:** `/etc/pip.conf` on the machine this was built on points at a corporate Artifactory
+mirror. Installing
 through it would work here and fail for anyone else, which breaks the brief's requirement that
 a stranger reach a working instance from the README in five minutes. It is the same defect as
 an employer email in the commit log or a corporate registry host in a lockfile — the repository
