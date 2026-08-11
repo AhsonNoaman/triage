@@ -97,7 +97,7 @@ make setup      # venv + dependencies from public PyPI
 make check      # ruff, mypy --strict, 230 tests (~15s cold)
 ```
 
-Expect `228 passed, 2 skipped` — the skip is the plot smoke test, which needs an artifact
+Expect `229 passed, 1 skipped` — the skip is the plot smoke test, which needs an artifact
 `make premise` builds and the repo does not commit. Green means the object model, the
 precondition layer, the retrieval leakage guards, the metric arithmetic and the agent loop all
 work on your machine. The agent loop is driven by a stub client, so the real control flow runs
