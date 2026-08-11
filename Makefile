@@ -22,7 +22,7 @@ help:
 	@echo "eval-resume  continue an interrupted run; already-recorded episodes are not re-bought"
 	@echo "eval-replay  re-score the recorded run. free, no key, no network"
 	@echo "plot       redraw docs/frontier.png from whatever has been measured"
-	@echo "explorer   rebuild docs/explorer.html -- draggable frontier + one traced complaint"
+	@echo "explorer   rebuild docs/index.html -- draggable frontier + one traced complaint"
 	@echo "test       pytest"
 	@echo "typecheck  mypy --strict"
 	@echo "lint       ruff"

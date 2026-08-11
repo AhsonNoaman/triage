@@ -11,6 +11,9 @@ sign."
 Built on the [CFPB Consumer Complaint Database](https://www.consumerfinance.gov/data-research/consumer-complaints/):
 396,952 real complaints with consumer narratives, 2021–2025, across four product families.
 
+**[Drag the threshold](https://ahsonnoaman.github.io/triage/)** — the frontier on 33,814 held-out complaints, and one complaint
+walked through the object graph the agent reasons over.
+
 ---
 
 ## Status
@@ -33,7 +36,7 @@ catch. What follows is what *has* been measured.
 | M4 actions and preconditions | done |
 | M5 agent loop, three tools, transcripts | done |
 | M6 eval harness | built; **not run** |
-| M7 interactive frontier | done — [docs/explorer.html](docs/explorer.html) |
+| M7 interactive frontier | done — **[live](https://ahsonnoaman.github.io/triage/)** |
 
 ---
 
@@ -91,10 +94,10 @@ sample is committed for exactly this.
 ```
 git clone <this repo> && cd triage
 make setup      # venv + dependencies from public PyPI
-make check      # ruff, mypy --strict, 220 tests (~15s cold)
+make check      # ruff, mypy --strict, 230 tests (~15s cold)
 ```
 
-Expect `219 passed, 1 skipped` — the skip is the plot smoke test, which needs an artifact
+Expect `228 passed, 2 skipped` — the skip is the plot smoke test, which needs an artifact
 `make premise` builds and the repo does not commit. Green means the object model, the
 precondition layer, the retrieval leakage guards, the metric arithmetic and the agent loop all
 work on your machine. The agent loop is driven by a stub client, so the real control flow runs
@@ -110,7 +113,7 @@ make quality    # regenerate docs/data-quality.md
 make premise    # regenerate docs/premise.md -- the baselines the agent must beat
 make plot       # redraw docs/frontier.png
 make name-leak  # regenerate docs/name-leak.md (~9 min, fits two models)
-make explorer   # rebuild docs/explorer.html -- the draggable frontier
+make explorer   # rebuild docs/index.html -- the page GitHub Pages serves
 ```
 
 And with a key:
@@ -215,7 +218,7 @@ tests/               220 tests
 | [docs/data-quality.md](docs/data-quality.md) | what the corpus actually contains, measured |
 | [docs/premise.md](docs/premise.md) | the baselines, and whether the premise survives them |
 | [docs/name-leak.md](docs/name-leak.md) | how leaky company-blind is, measured both ways |
-| [docs/explorer.html](docs/explorer.html) | drag the threshold; walk one complaint through the environment |
+| **[the explorer](https://ahsonnoaman.github.io/triage/)** | drag the threshold; walk one complaint through the environment |
 | [docs/pushback.md](docs/pushback.md) | objections to the brief that measurement did not settle |
 | [docs/open-questions.md](docs/open-questions.md) | decisions deferred, and what would settle them |
 | [docs/interview-guide.md](docs/interview-guide.md) | discovery questions, written to falsify |

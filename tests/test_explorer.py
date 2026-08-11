@@ -101,11 +101,11 @@ def test_the_generated_page_is_self_contained() -> None:
 
 
 @pytest.mark.skipif(
-    not (Path(__file__).resolve().parent.parent / "docs" / "explorer.html").exists(),
+    not (Path(__file__).resolve().parent.parent / "docs" / "index.html").exists(),
     reason="needs `make explorer`; the page is a build artifact",
 )
 def test_the_built_page_carries_real_data() -> None:
-    page = (Path(__file__).resolve().parent.parent / "docs" / "explorer.html").read_text()
+    page = (Path(__file__).resolve().parent.parent / "docs" / "index.html").read_text()
     blob = re.search(r"const DATA = (\{.*?\});\n", page, re.S)
     assert blob is not None
     data = json.loads(blob.group(1).replace("<\\/", "</"))

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build docs/explorer.html -- the frontier you can drag, and one complaint you can walk.
+"""Build docs/index.html -- the frontier you can drag, and one complaint you can walk.
 
     make explorer
 
@@ -17,7 +17,10 @@ which preconditions each action would fail. Every field on that panel is compute
 same code the agent calls -- none of it is written by hand for the page.
 
 Self-contained by construction: one HTML file with the data inlined, no build step, no network,
-no dependencies. Open it with a double click or serve the directory anywhere.
+no dependencies. Open it with a double click, or let a static host serve the directory -- which
+is why it is `index.html` and why `docs/` carries a `.nojekyll`: GitHub Pages serves this folder
+as the project site, and the committed page is the deployment. CI cannot rebuild it, because
+rebuilding needs the 396,952-record corpus and that is not in the repository.
 
 Runs on whatever has been measured. The agent's own curve and its recorded reasoning appear
 once `make eval` has produced a transcript; until then the page says so rather than drawing a
@@ -296,7 +299,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--split", choices=["validation", "test"], default="validation")
     parser.add_argument("--scores", type=Path, default=ROOT / "data" / "baseline_scores.parquet")
     parser.add_argument("--raw", type=Path, default=ROOT / "data" / "raw" / RAW_FILENAME)
-    parser.add_argument("--out", type=Path, default=ROOT / "docs" / "explorer.html")
+    parser.add_argument("--out", type=Path, default=ROOT / "docs" / "index.html")
     parser.add_argument(
         "--fragment", type=Path,
         help="also write a version without the document shell, for a host that supplies one",
