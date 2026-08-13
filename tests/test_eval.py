@@ -393,6 +393,35 @@ def test_the_spend_is_quoted_before_it_is_spent(
     quoted = capsys.readouterr().out
     assert "500 episodes" in quoted
     assert "claude-opus-5" in quoted
+    assert "prompt caching" in quoted, "the quote must name the cache; the number depends on it"
+
+
+def test_the_quote_uses_the_cached_price_and_it_is_lower_than_the_uncached_one() -> None:
+    """A regression that reverted the estimator to full-rate input on every token would double
+    the invariant prefix and add ~15% to the quoted bill. This test catches that directly."""
+    from scripts.run_eval import (
+        ESTIMATED_FRESH_INPUT_TOKENS_PER_EPISODE,
+        ESTIMATED_OUTPUT_TOKENS_PER_EPISODE,
+        ESTIMATED_PREFIX_TOKENS,
+        ESTIMATED_TURNS_PER_EPISODE,
+        estimated_cost_per_episode,
+    )
+    from triage.agent import Decision
+
+    quoted = estimated_cost_per_episode()
+    same_tokens_uncached = Decision(
+        complaint_id="_", disposition="_", confidence=0.0, fields={},
+        turns=ESTIMATED_TURNS_PER_EPISODE, tool_calls=0,
+        input_tokens=(
+            ESTIMATED_FRESH_INPUT_TOKENS_PER_EPISODE
+            + ESTIMATED_PREFIX_TOKENS * ESTIMATED_TURNS_PER_EPISODE
+        ),
+        output_tokens=ESTIMATED_OUTPUT_TOKENS_PER_EPISODE,
+        seconds=0.0, accepted=False, rejection=None,
+    ).cost_usd
+    assert quoted < same_tokens_uncached
+    savings = (same_tokens_uncached - quoted) / same_tokens_uncached
+    assert 0.08 < savings < 0.20, f"cache savings should be ~12%; got {savings:.1%}"
 
 
 def test_a_resumed_run_is_quoted_for_what_is_left(

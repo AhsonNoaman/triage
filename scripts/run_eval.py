@@ -37,9 +37,7 @@ import numpy as np
 
 from triage.actions import Overlay
 from triage.agent import (
-    INPUT_COST_PER_MTOK,
     MODEL,
-    OUTPUT_COST_PER_MTOK,
     Decision,
     Episode,
     MessagesClient,
@@ -76,12 +74,38 @@ PROGRESS_EVERY = 10
 #: precondition layer emits, because it is missing data rather than a bad decision.
 API_ERROR = "api_error"
 
-#: Rough per-episode token cost, from the M5 stub runs and the prompt sizes: the system prompt
-#: and rendered complaint are about 1.5k tokens, each of up to five retrieved narratives adds
-#: 200-400, and adaptive thinking on a genuinely uncertain case runs long. Used only to price
-#: the run before it starts, so an unexpected bill is a surprise before the money and not after.
-ESTIMATED_INPUT_TOKENS = 14_000
-ESTIMATED_OUTPUT_TOKENS = 2_500
+#: Rough per-episode token budget, from the M5 stub runs and the prompt sizes. Split three ways
+#: so the estimator uses the same pricing formula as `Decision.cost_usd`: the invariant prefix
+#: (tools + system, ~1,175 tokens measured) is cached, sent uncached the first time in the
+#: cache window and read back on every request after that; the "fresh" portion is the rendered
+#: complaint plus the retrieval and policy tool results the agent accumulates across turns.
+#: Deliberate over-estimate: a run that comes in under quote is a good surprise.
+ESTIMATED_TURNS_PER_EPISODE = 3
+ESTIMATED_PREFIX_TOKENS = 1_175
+ESTIMATED_FRESH_INPUT_TOKENS_PER_EPISODE = 10_500
+ESTIMATED_OUTPUT_TOKENS_PER_EPISODE = 2_500
+
+
+def estimated_cost_per_episode() -> float:
+    """The bill the estimator quotes, using `Decision.cost_usd` as the single source of truth.
+
+    Assumes a warm cache: the invariant prefix is written once at the start of the run window
+    and read back on every subsequent request, which is what an eight-worker run inside a
+    five-minute TTL looks like once ramp-up is over. The write cost is a rounding error at
+    500 episodes (one write, thousands of reads) and is folded into the read term here rather
+    than modelled separately.
+    """
+    from triage.agent import Decision  # local, so this module stays importable in tests
+
+    return Decision(
+        complaint_id="_estimate_", disposition="_", confidence=0.0, fields={},
+        turns=ESTIMATED_TURNS_PER_EPISODE, tool_calls=0,
+        input_tokens=ESTIMATED_FRESH_INPUT_TOKENS_PER_EPISODE,
+        output_tokens=ESTIMATED_OUTPUT_TOKENS_PER_EPISODE,
+        cache_creation_input_tokens=0,
+        cache_read_input_tokens=ESTIMATED_PREFIX_TOKENS * ESTIMATED_TURNS_PER_EPISODE,
+        seconds=0.0, accepted=False, rejection=None,
+    ).cost_usd
 
 
 def stratified(
@@ -198,11 +222,11 @@ def run_live(
                 finished += 1
                 failed += episode.error is not None
                 if finished % PROGRESS_EVERY == 0 or finished == len(todo):
+                    # `Decision.cost_usd` is the single source of truth for pricing -- open-
+                    # coding the formula here would let the progress line and the report drift.
                     spent = sum(
-                        float(e.result["input_tokens"]) * INPUT_COST_PER_MTOK / 1e6
-                        + float(e.result["output_tokens"]) * OUTPUT_COST_PER_MTOK / 1e6
-                        for e in recorded.values()
-                        if e.result is not None
+                        Decision(**e.result).cost_usd
+                        for e in recorded.values() if e.result is not None
                     )
                     elapsed = time.monotonic() - started
                     rate = finished / elapsed if elapsed else 0.0
@@ -280,13 +304,11 @@ def confirm_spend(
     if resume and transcript.exists():
         already = sum(1 for e in read_transcript(transcript) if e.error is None)
     remaining = max(n - already, 0)
-    per_episode = (
-        ESTIMATED_INPUT_TOKENS * INPUT_COST_PER_MTOK
-        + ESTIMATED_OUTPUT_TOKENS * OUTPUT_COST_PER_MTOK
-    ) / 1e6
+    per_episode = estimated_cost_per_episode()
     print(
         f"about to run {remaining:,} episodes against {MODEL}, roughly "
-        f"${remaining * per_episode:.0f} (${per_episode:.3f} each). "
+        f"${remaining * per_episode:.0f} (${per_episode:.3f} each, with prompt caching on the "
+        f"invariant prefix). "
         f"Transcript: {transcript}",
         flush=True,
     )

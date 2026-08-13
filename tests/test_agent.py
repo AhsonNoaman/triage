@@ -21,6 +21,7 @@ from tests.test_ontology import complaint
 from triage.actions import Overlay
 from triage.agent import (
     DECISION_SCHEMA,
+    SYSTEM_PROMPT,
     Episode,
     ToolBox,
     TranscriptError,
@@ -51,6 +52,8 @@ class Block:
 class Usage:
     input_tokens: int = 1_000
     output_tokens: int = 200
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
 
 
 @dataclass
@@ -261,6 +264,116 @@ def test_cost_is_computed_from_recorded_tokens() -> None:
                                "reason_code": "disputed_facts", "evidence": "unknown_rule"})])
     decision, _ = run_episode(client, view=view, toolbox=toolbox)
     assert decision.cost_usd == pytest.approx((1_000 * 5.0 + 200 * 25.0) / 1e6)
+
+
+# -- prompt caching -------------------------------------------------------------------------
+
+
+def test_the_system_prompt_is_marked_for_ephemeral_caching() -> None:
+    """The invariant prefix -- tool definitions and system prompt -- is identical across every
+    complaint and every turn, so it must arrive as a text block with cache_control set. A raw
+    string here silently loses the cache and turns the 90% read discount into full-rate input
+    on every request, which is exactly the failure mode the change was made to prevent.
+    """
+    toolbox, view, _ = build()
+    client = StubClient([text({"disposition": "escalate", "confidence": 0.5,
+                               "reason_code": "disputed_facts", "evidence": "unknown_rule"})])
+    run_episode(client, view=view, toolbox=toolbox)
+
+    system = client.requests[0]["system"]
+    assert isinstance(system, list), (
+        "system must be a list of TextBlockParam for cache_control to attach"
+    )
+    assert system[-1]["cache_control"] == {"type": "ephemeral"}
+    assert system[-1]["text"] == SYSTEM_PROMPT
+
+
+def test_cache_tokens_are_recorded_and_priced_below_regular_input() -> None:
+    """A cached response bills the write and the read separately, and the cost reflects that.
+
+    The math is checked against the pinned rates because a rounding error here would move every
+    published cost-per-resolved-case in the same direction and nothing else in the test suite
+    would catch it.
+    """
+    toolbox, view, _ = build()
+    client = StubClient([
+        tool("find_objects", {"kind": "similar_complaint"}),
+        Response(
+            [Block(type="text", text=json.dumps({
+                "disposition": "escalate", "confidence": 0.5,
+                "reason_code": "disputed_facts", "evidence": "unknown_rule",
+            }))],
+            Usage(
+                input_tokens=1_500, output_tokens=300,
+                cache_creation_input_tokens=1_200, cache_read_input_tokens=0,
+            ),
+        ),
+    ])
+    # First response uses the default Usage (all zero for cache); second is the cached call.
+    client.script[0] = Response(
+        client.script[0].content,
+        Usage(
+            input_tokens=500, output_tokens=200,
+            cache_creation_input_tokens=1_200, cache_read_input_tokens=0,
+        ),
+    )
+    decision, _ = run_episode(client, view=view, toolbox=toolbox)
+
+    assert decision.cache_creation_input_tokens == 2_400
+    assert decision.cache_read_input_tokens == 0
+    assert decision.input_tokens == 2_000
+    assert decision.output_tokens == 500
+
+    expected = (
+        2_000 * 5.0            # fresh input at $5/MTok
+        + 2_400 * 5.0 * 1.25   # cache writes at 1.25x
+        + 0    * 5.0 * 0.10    # cache reads at 0.10x
+        + 500  * 25.0          # output at $25/MTok
+    ) / 1_000_000
+    assert decision.cost_usd == pytest.approx(expected)
+
+
+def test_a_second_turn_reads_from_cache_at_a_tenth_of_the_input_rate() -> None:
+    """The cost win only materialises on turn 2, which is the reason for caching at all.
+
+    Asserts against `decision.cost_usd` -- the number the report prints -- rather than against
+    a hand-computed constant, because mutating the discount factor in `loop.py` has to move the
+    reported cost or the test caught nothing.
+    """
+    toolbox, view, _ = build()
+    client = StubClient([
+        Response(
+            [Block(type="tool_use", id="tu1", name="find_objects",
+                   input={"kind": "similar_complaint"})],
+            Usage(input_tokens=300, output_tokens=100,
+                  cache_creation_input_tokens=1_200, cache_read_input_tokens=0),
+        ),
+        Response(
+            [Block(type="text", text=json.dumps({
+                "disposition": "escalate", "confidence": 0.5,
+                "reason_code": "disputed_facts", "evidence": "unknown_rule",
+            }))],
+            Usage(input_tokens=800, output_tokens=200,
+                  cache_creation_input_tokens=0, cache_read_input_tokens=1_200),
+        ),
+    ])
+    decision, _ = run_episode(client, view=view, toolbox=toolbox)
+
+    assert decision.cache_creation_input_tokens == 1_200
+    assert decision.cache_read_input_tokens == 1_200
+
+    # The prefix would have cost 2 * 1_200 * $5/M = $0.012 if sent uncached both turns. With
+    # caching it is one write at 1.25x + one read at 0.10x = 1_200 * ($6.25 + $0.50) / M =
+    # $0.0081, plus $0.0055 of fresh input and $0.0075 of output. Total $0.0211.
+    assert decision.cost_usd == pytest.approx(
+        (1_100 * 5.00 + 1_200 * 6.25 + 1_200 * 0.50 + 300 * 25.00) / 1_000_000
+    )
+    # And the discount is real: recompute what the same tokens would have cost without caching.
+    uncached_cost = (
+        (1_100 + 1_200 + 1_200) * 5.00 + 300 * 25.00
+    ) / 1_000_000
+    assert decision.cost_usd < uncached_cost
+    assert decision.cost_usd / uncached_cost == pytest.approx(0.844, abs=0.01)
 
 
 # -- transcripts ----------------------------------------------------------------------------

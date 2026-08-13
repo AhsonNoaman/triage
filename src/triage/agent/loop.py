@@ -28,7 +28,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Final, Protocol
 
-from anthropic.types import MessageParam, ToolResultBlockParam
+from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
 
 from triage.actions import Disposition
 from triage.agent.tools import TOOLS, ToolBox
@@ -42,6 +42,13 @@ MAX_TOKENS: Final[int] = 8_000
 #: a recorded run can be re-costed from its token counts alone.
 INPUT_COST_PER_MTOK: Final[float] = 5.0
 OUTPUT_COST_PER_MTOK: Final[float] = 25.0
+
+#: Prompt caching. The invariant prefix -- tool definitions and system prompt -- is identical
+#: across every complaint and every turn, so it is marked with `cache_control` and read from
+#: cache after the first turn writes it. Writes bill at 1.25x base input, reads at 0.10x, per
+#: the 5-minute ephemeral tier; the run is dense enough that a warm cache stays warm.
+CACHE_WRITE_COST_PER_MTOK: Final[float] = INPUT_COST_PER_MTOK * 1.25
+CACHE_READ_COST_PER_MTOK: Final[float] = INPUT_COST_PER_MTOK * 0.10
 
 DECISION_SCHEMA: Final[dict[str, object]] = {
     "type": "object",
@@ -118,11 +125,18 @@ class Decision:
     seconds: float
     accepted: bool
     rejection: str | None
+    # Defaulted for one-way compatibility with transcripts written before caching landed. New
+    # runs always populate them; a replayed old run reads zeros here and its cost matches what
+    # it originally paid, which is the property replay exists to preserve.
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
 
     @property
     def cost_usd(self) -> float:
         return (
             self.input_tokens * INPUT_COST_PER_MTOK
+            + self.cache_creation_input_tokens * CACHE_WRITE_COST_PER_MTOK
+            + self.cache_read_input_tokens * CACHE_READ_COST_PER_MTOK
             + self.output_tokens * OUTPUT_COST_PER_MTOK
         ) / 1_000_000
 
@@ -223,13 +237,23 @@ def run_episode(
     started = time.monotonic()
     episode = Episode(complaint_id=view.complaint_id)
     messages: list[MessageParam] = [{"role": "user", "content": _render(view)}]
-    input_tokens = output_tokens = 0
+    input_tokens = output_tokens = cache_creation = cache_read = 0
+
+    # The system prompt and the three tool definitions are byte-identical across every complaint
+    # and every turn of every episode -- the same ~1,200 tokens sent thousands of times. Marking
+    # the system block with `cache_control` puts the whole invariant prefix (tools + system, in
+    # canonical order) behind a cache breakpoint: the first turn pays a write, everything after
+    # -- other turns of the same episode, and other episodes reaching within the 5-minute
+    # ephemeral window -- reads it back at a tenth of the input rate.
+    system: list[TextBlockParam] = [
+        {"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}
+    ]
 
     for turn in range(1, max_turns + 1):
         response = client.create(
             model=model,
             max_tokens=MAX_TOKENS,
-            system=SYSTEM_PROMPT,
+            system=system,
             messages=messages,
             tools=TOOLS,
             thinking={"type": "adaptive"},
@@ -239,6 +263,8 @@ def run_episode(
         if usage is not None:
             input_tokens += int(getattr(usage, "input_tokens", 0) or 0)
             output_tokens += int(getattr(usage, "output_tokens", 0) or 0)
+            cache_creation += int(getattr(usage, "cache_creation_input_tokens", 0) or 0)
+            cache_read += int(getattr(usage, "cache_read_input_tokens", 0) or 0)
         episode.responses.append(_response_json(response))
 
         uses = _tool_uses(response)
@@ -248,7 +274,8 @@ def run_episode(
                 continue
             episode.decision = decision
             scored = _finalise(
-                view, decision, toolbox, turn, input_tokens, output_tokens, started
+                view, decision, toolbox, turn,
+                input_tokens, output_tokens, cache_creation, cache_read, started,
             )
             episode.result = asdict(scored)
             return scored, episode
@@ -276,6 +303,8 @@ def run_episode(
         tool_calls=len(toolbox.calls),
         input_tokens=input_tokens,
         output_tokens=output_tokens,
+        cache_creation_input_tokens=cache_creation,
+        cache_read_input_tokens=cache_read,
         seconds=time.monotonic() - started,
         accepted=False,
         rejection="no_decision",
@@ -291,6 +320,8 @@ def _finalise(
     turns: int,
     input_tokens: int,
     output_tokens: int,
+    cache_creation: int,
+    cache_read: int,
     started: float,
 ) -> Decision:
     """Re-run the chosen action's preconditions for real, and record whether it stood.
@@ -316,6 +347,8 @@ def _finalise(
         tool_calls=len(toolbox.calls),
         input_tokens=input_tokens,
         output_tokens=output_tokens,
+        cache_creation_input_tokens=cache_creation,
+        cache_read_input_tokens=cache_read,
         seconds=time.monotonic() - started,
         accepted=bool(outcome.get("ok")),
         rejection=None if outcome.get("ok") else str(outcome.get("precondition", "unknown")),
