@@ -163,7 +163,7 @@ def test_a_fully_grounded_resolve_produces_a_diff_and_does_not_apply_it() -> Non
         "q", "reg_z_1026_13", "asserted_billing_error_is_covered",
         "Precedent p1 closed with an explanation on the same billing-error theory",
     )
-    assert diff.disposition is Disposition.RESOLVED
+    assert diff.disposition is Disposition.RESOLVE
     assert diff.fields["citation"] == "12 CFR 1026.13"
     assert diff.fields["grounded_in"] == "p1"
     assert overlay.is_open("q"), "the action must not have written anything"
@@ -214,7 +214,7 @@ def test_an_escalation_that_names_nothing_is_rejected() -> None:
 def test_each_allowed_justification_is_accepted_and_labelled(evidence: str, kind: str) -> None:
     actions, _ = setup(retrieved=frozenset({"p1"}))
     diff = actions.escalate("q", "conflicting_precedent", evidence)
-    assert diff.disposition is Disposition.ESCALATED
+    assert diff.disposition is Disposition.ESCALATE
     assert diff.fields["evidence_kind"] == kind
 
 
@@ -246,7 +246,7 @@ def test_asking_for_a_redacted_amount_is_allowed() -> None:
     diff = actions.request_information(
         "q", "What was the exact amount of the disputed charge?", "transaction_amount"
     )
-    assert diff.disposition is Disposition.INFORMATION_REQUESTED
+    assert diff.disposition is Disposition.REQUEST_INFORMATION
     assert diff.fields["amount_was_redacted"] == "True"
 
 

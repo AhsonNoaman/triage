@@ -10,9 +10,9 @@ same-session drafts would be noise rather than history. The amendments are marke
 
 ---
 
-## M0 — 2026-08-10
+## M0, 2026-08-10
 
-### D1 — Run the premise test at M0, not M2
+### D1. Run the premise test at M0, not M2
 
 **Chosen:** measure the CFPB base rates before writing the object model, not after.
 
@@ -20,7 +20,7 @@ same-session drafts would be noise rather than history. The amendments are marke
 
 **Why:** the previous project discovered at M4 that its motivating story was mostly wrong. That
 correction was the best thing in the repository and it arrived too late to change the product.
-Here the equivalent check is cheap — it is four aggregation calls against a public API — and it
+Here the equivalent check is cheap, four aggregation calls against a public API, and it
 turned out to invalidate the brief's ground truth entirely. Two hours at M0 saved rebuilding at
 M6. The formal, script-committed premise test still happens at M2 as specified; this was the
 early read.
@@ -29,7 +29,7 @@ early read.
 
 ---
 
-### D2 — `consumer_disputed` is unavailable, not merely deprecated
+### D2. `consumer_disputed` is unavailable, not merely deprecated
 
 **Chosen:** drop it from the ground truth entirely and say so in the README.
 
@@ -37,7 +37,7 @@ early read.
 multi-gigabyte bulk CSV to check whether it survives there.
 
 **Why:** the field is absent from the search API in every window. Pre-2017 windows return
-768,667 complaints and 100% of them are unbucketed on it — this is not the documented
+768,667 complaints and 100% of them are unbucketed on it. That is not the documented
 "discontinued in April 2017" behaviour, it is simply not indexed. Confining the project to
 pre-2017 data would mean building a 2026 product demo on a nine-year-old distribution in which
 credit reporting was 23% rather than 88% of volume. The bulk CSV was not pulled because even if
@@ -50,7 +50,7 @@ respond*.
 
 ---
 
-### D3 — Scope to consumer banking and cards
+### D3. Scope to consumer banking and cards
 
 **Amended later at M0, twice.** The count and rate below were both wrong: the product filter was
 missing a retired taxonomy label (see D11), and the relief rate quoted only the monetary half of
@@ -67,7 +67,7 @@ depending on split.
 class); banking plus credit reporting carried as a named negative case.
 
 **Why:** the whole-database monetary relief rate is 0.48% and falling. A frontier curve over a
-0.48% positive class is a flat line — the headline artifact of the repository would carry no
+0.48% positive class is a flat line, and the headline artifact of the repository would carry no
 information. The four in-scope products run 13-21% monetary relief among narrative complaints
 and map cleanly onto Reg E and Reg Z, which is what lets `PolicyRule` be real (see D5).
 
@@ -80,7 +80,7 @@ where the real support cost sits, in which case the interesting product is a dif
 
 ---
 
-### D4 — Ground truth is under-served relief, not monetary relief
+### D4. Ground truth is under-served relief, not monetary relief
 
 **Amended later at M0.** The definition below said "relief of any kind" without enumerating the
 outcome vocabulary, which left the treatment of `Untimely response` and `In progress` implicit.
@@ -89,14 +89,14 @@ value-by-value mapping with counts is DESIGN.md §3.1-3.2. The direction of the 
 unchanged.
 
 **Chosen:** a false resolution is a complaint the agent auto-closed with an explanation where the
-company granted relief of any kind — monetary **or non-monetary**.
+company granted relief of any kind, monetary **or non-monetary**.
 
 **Rejected:** the brief's "monetary relief, or consumer disputed"; monetary relief alone; a
 composite including the `timely` flag.
 
 **Why:** three reasons, and the first is the one that matters.
 
-A $35 fee reversal is among the most automatable actions in consumer banking — a policy lookup
+A $35 fee reversal is among the most automatable actions in consumer banking: a policy lookup
 against a dollar threshold. Treating monetary relief as the definition of *a human was needed*
 would tune the operating point to escalate the cheap rule-governed cases and auto-resolve the
 ambiguous ones. The metric would point the wrong way, and it would do so invisibly, because the
@@ -104,7 +104,7 @@ resulting curve would still look like a curve.
 
 Including non-monetary relief is the substantive half of this. It is 11.10% of the train window,
 larger than monetary relief in credit card complaints (17.4% against 16.2%), and it covers the
-frozen account, the corrected record, the reversed adverse action — cases where an automated
+frozen account, the corrected record, the reversed adverse action, cases where an automated
 closure withholds something the company itself decided to do, and where the customer harm is
 often larger than a withheld refund. Excluding it also roughly halves the positive class: on the
 validation split, from 20.63% to 12.68%; on the train window, from 26.83% to 15.74%. That is the
@@ -124,7 +124,7 @@ company **did**, not what was warranted. Three consequences:
 3. It is a self-report with no adjudication attached.
 
 So the model predicts **company behaviour, not adjudicated correctness.** For this product that
-is still the right target — the decision being automated is "close with an explanation, or route
+is still the right target, since the decision being automated is "close with an explanation, or route
 to someone with authority to grant relief", and company behaviour is exactly what determines
 whether that routing was needed. But the README states the narrow claim, and states it before a
 reviewer states it for us.
@@ -133,12 +133,12 @@ One asymmetry is kept: a company granting relief did so at its own cost, which m
 direction conservative. The negative direction is not conservative, and nothing here makes it so.
 
 **Could be reversed by:** a support operator saying that in their experience the relief decision
-is the automatable part and the escalation trigger is something else entirely — sentiment,
+is the automatable part and the escalation trigger is something else entirely: sentiment,
 repeat contact, regulatory exposure. This is the single decision most exposed to discovery.
 
 ---
 
-### D5 — `PolicyRule` is federal regulation, not authored rules
+### D5. `PolicyRule` is federal regulation, not authored rules
 
 **Chosen:** Reg E (12 CFR 1005.11), Reg Z (12 CFR 1026.13), FCRA §611. Public, citable, with
 real windows and dollar thresholds.
@@ -146,7 +146,7 @@ real windows and dollar thresholds.
 **Rejected:** authoring a plausible policy layer over the CFPB issue taxonomy.
 
 **Why:** the CFPB publishes no per-issue policy rules. Authored rules would make citation
-validity a check against fiction — the agent would be graded on citing rules invented in this
+validity a check against fiction. The agent would be graded on citing rules invented in this
 repository for the purpose of grading it, which is circular, and it is synthetic data presented
 as real. Grounding in actual regulation costs nothing and makes `resolve()` reject on
 preconditions that exist outside this repository.
@@ -160,17 +160,17 @@ regulatory hook, that product gets no `PolicyRule` and its complaints can only e
 
 ---
 
-### D6 — Six objects; drop `Consumer`, count `Resolution`
+### D6. Six objects; drop `Consumer`, count `Resolution`
 
 **Chosen:** `Complaint`, `Company`, `Product`, `IssueCategory`, `PolicyRule`, `Resolution`.
 
-**Rejected:** the brief's list, which named six objects but introduced a seventh —
-`Resolution` — in its link list without counting it.
+**Rejected:** the brief's list, which named six objects but introduced a seventh,
+`Resolution`, in its link list without counting it.
 
 **Why:** the brief's scope guard says to stop and ask when a seventh object appears. It appeared
 in the brief itself, so this was raised rather than absorbed.
 
-`Consumer` was dropped because the dataset carries no consumer identifier — a state, a partial
+`Consumer` was dropped because the dataset carries no consumer identifier, only a state, a partial
 ZIP, and two tags. There is nothing to traverse to and no identity that persists across
 complaints. It would be three columns of `Complaint` presented as an object: an abstraction with
 one implementation, and a link that always has exactly one endpoint. Those fields stay on
@@ -182,7 +182,7 @@ escalation signal.
 
 ---
 
-### D7 — Time-based splits, and the operating point is chosen on validation
+### D7. Time-based splits, and the operating point is chosen on validation
 
 **Amended later at M0.** The boundaries below were wrong: they put the January 2025 bulk-
 submission event (D12) inside the test window, where it would have dominated every reported
@@ -202,7 +202,7 @@ overstates everything downstream. Choosing the threshold on the same split it is
 would be the same error wearing a different hat.
 
 The corrected boundaries also buy something the original did not: validation and test are now
-adjacent and their base rates agree to 0.28 points — 20.63% against 20.35%. An operating point
+adjacent and their base rates agree to 0.28 points: 20.63% against 20.35%. An operating point
 chosen on one transfers to the other on a like-for-like population. Under the original
 boundaries, validation sat at 25.81% and test at 10.46%.
 
@@ -214,7 +214,7 @@ window shows another regime change.
 
 ---
 
-### D8 — False-resolution rate is divided by `n_auto`, citation validity is reported as a rejection rate
+### D8. False-resolution rate is divided by `n_auto`, citation validity is reported as a rejection rate
 
 **Chosen:** false resolutions over complaints the agent auto-resolved; citation validity
 reported as how often `resolve()` refused a cited rule.
@@ -235,7 +235,7 @@ the agent tried to cite a rule the ontology refused.
 
 ---
 
-### D9 — Threshold swept post-hoc; the eval budget is booked at M0
+### D9. Threshold swept post-hoc; the eval budget is booked at M0
 
 **Chosen:** the agent emits one calibrated confidence per complaint and the sweep is arithmetic
 over recorded confidences. Budget $100 booked before M1.
@@ -243,7 +243,7 @@ over recorded confidences. Budget $100 booked before M1.
 **Rejected:** re-running the agent per threshold value.
 
 **Why:** the entire frontier comes from a single pass over each split, which makes the sweep
-free and the eval affordable — 1,000 complaints at roughly $0.06 each. The previous project
+free and the eval affordable: 1,000 complaints at roughly $0.06 each. The previous project
 shipped a complete eval harness that was never run because the spend was never budgeted. Booking
 it at M0 is the direct correction.
 
@@ -254,7 +254,7 @@ consume the budget.
 
 ---
 
-### D10 — The repository lives outside the session's working directory
+### D10. The repository lives outside the session's working directory
 
 **Chosen:** `~/triage`, a sibling of the existing portfolio repositories. Git identity pinned
 per-repo to the personal address at `git init`, before the first commit.
@@ -265,15 +265,15 @@ per-repo to the personal address at `git init`, before the first commit.
 Nesting would entangle two portfolio repositories and muddy both histories.
 
 The identity is set per-repo rather than relied upon globally: these repositories go on a
-personal account, and every account this project depends on — GitHub, the deployment target, the
-API key — must outlive the current employer. A live demo tied to a work SSO login stops working
+personal account, and every account this project depends on (GitHub, the deployment target, the
+API key) must outlive the current employer. A live demo tied to a work SSO login stops working
 at offboarding, which removes the point of the artifact.
 
 **Could be reversed by:** nothing.
 
 ---
 
-### D11 — `product` is not a stable key; five raw labels collapse to four canonical products
+### D11. `product` is not a stable key; five raw labels collapse to four canonical products
 
 **Chosen:** `Product` carries a canonical slug and a `labels` alias list. The in-scope filter
 matches five raw strings, including the retired `Credit card or prepaid card`.
@@ -284,7 +284,7 @@ this design did.
 **Why:** the CFPB re-versions its product taxonomy without restating history.
 `Credit card or prepaid card` carries 16,607 / 21,512 / 21,283 in-scope narrative complaints in
 2021 / 2022 / 2023 and exactly zero from 2024 on. The naive filter drops 59,402 of the 156,431
-in-scope complaints filed before 2024 — **38%** — and drops them **entirely from the training
+in-scope complaints filed before 2024, **38%**, and drops them **entirely from the training
 window**, which is where the `similar_to` retrieval corpus lives.
 
 The failure mode is the dangerous kind: the agent would have retrieved from a corpus with a
@@ -300,7 +300,7 @@ measured bucket list.
 
 ---
 
-### D12 — Two months are excluded, and the boundary is chosen on volume rather than outcome
+### D12. Two months are excluded, and the boundary is chosen on volume rather than outcome
 
 **Chosen:** 2025-01-01 to 2025-02-28 is excluded from every split. 71,033 in-scope narrative
 complaints.
@@ -309,7 +309,7 @@ complaints.
 excluding by respondent rather than by date.
 
 **Why:** January 2025 carries 59,759 in-scope narrative complaints against a 2024 monthly mean
-of 6,573 — 9.1 times normal — at a 3.79% relief rate against a ~26% baseline. It is two
+of 6,573, or 9.1 times normal, at a 3.79% relief rate against a ~26% baseline. It is two
 respondents: Block, Inc. goes 3.01% of 2024 H2 to 31.75% of 2025 H1, and Early Warning Services
 0.68% to 15.00%. By 2025 H2 they are back to 7.97% and 1.84%. February is still 1.7× the mean;
 from March the monthly count returns to the band it holds for the rest of the year.
@@ -321,7 +321,7 @@ Had the boundary been chosen on the relief rate, the resulting agreement between
 test would be an artifact of the choice rather than evidence for it.
 
 Excluding by respondent was rejected because it would remove Block and Early Warning from every
-window, including the ones where their traffic is ordinary — which discards real complaints to
+window, including the ones where their traffic is ordinary, which discards real complaints to
 fix a problem that is confined to two months.
 
 **Could be reversed by:** a discovery conversation establishing that bulk submission waves are a
@@ -330,7 +330,7 @@ easier than the job.
 
 ---
 
-### D13 — `IssueCategory` is a four-tuple; `Resolution` stays an object to make withholding structural
+### D13. `IssueCategory` is a four-tuple; `Resolution` stays an object to make withholding structural
 
 **Chosen:** `IssueCategory` identity is `(product_id, sub_product, issue, sub_issue)`.
 `Resolution` is a distinct object reached by a distinct link.
@@ -339,7 +339,7 @@ easier than the job.
 `Complaint`.
 
 **Why:** the issue vocabulary is per-product and reuses wording across products. The train window
-contains both `Closing an account` and `Closing your account` — the same concept under two
+contains both `Closing an account` and `Closing your account`, the same concept under two
 product vocabularies, falling under two different regulations. Keying on `issue` alone merges
 them and makes `governed_by` ambiguous, which would corrupt the one precondition the citation
 metric depends on. 44 distinct `issue` values occur in the train window; the tuple space is
@@ -347,7 +347,7 @@ enumerated from data at M1 rather than authored.
 
 `Resolution` stays an object for a reason beyond object-count bookkeeping: **it is the only
 object the agent must never see.** A distinct object with a distinct link means the withholding
-is structural — `traverse_links` refuses `resolved_as` in agent context — rather than a
+is structural: `traverse_links` refuses `resolved_as` in agent context, rather than a
 field-name blocklist that a later schema change silently defeats. The strongest guarantee in the
 eval is the one enforced by the type system rather than by a string comparison.
 
@@ -355,7 +355,7 @@ eval is the one enforced by the type system rather than by a string comparison.
 
 ---
 
-### D14 — The agent sees intake-time fields only
+### D14. The agent sees intake-time fields only
 
 **Chosen:** the agent's view of a `Complaint` is `complaint_id`, `date_received`, `product`,
 `sub_product`, `issue`, `sub_issue`, narrative, `company`, `state`, `zip_prefix`, `tags`,
@@ -381,7 +381,7 @@ rate, and run a redacted-company ablation on validation only. See
 
 ---
 
-### D15 — The confidence is `P(no relief)`, and the threshold is a routing rule
+### D15. The confidence is `P(no relief)`, and the threshold is a routing rule
 
 **Chosen:** `c = P(the recorded company_response granted no relief)`. Auto-close iff the agent
 proposed `resolve` **and** `c ≥ τ`; a proposed `resolve` with `c < τ` is converted to an
@@ -398,7 +398,7 @@ against `Resolution.needed_human`.
 It also produces a property that is worth having as a sanity check on the whole design: **the
 false-resolution rate at threshold τ is exactly the miscalibration in the tail above τ**, so if
 `c` is perfectly calibrated the false-resolution rate at τ is bounded by `1 − τ`. The frontier
-curve is a direct read of the calibration curve — which is why measuring calibration (D16) is
+curve is a direct read of the calibration curve, which is why measuring calibration (D16) is
 not an add-on but the thing that makes the curve mean anything.
 
 Keeping the agent's proposed action in the routing rule, rather than thresholding `c` alone,
@@ -409,7 +409,7 @@ the outcome. Its judgement stays in the loop instead of being collapsed to a num
 
 ---
 
-### D16 — Calibration is measured before the sweep is believed
+### D16. Calibration is measured before the sweep is believed
 
 **Chosen:** reliability diagram, weighted ECE and Brier on validation. If ECE > 0.05, fit Platt
 scaling on validation, freeze it before τ is chosen, apply it unchanged to test, and publish both
@@ -420,7 +420,7 @@ size; fitting the calibrator on test.
 
 **Why:** stated confidence from a language model usually is not calibrated, and by D15 the entire
 frontier is a function of calibration. An uncalibrated threshold is an arbitrary scale wearing a
-probability's clothes. The check costs nothing — it is the same post-hoc arithmetic over recorded
+probability's clothes. The check costs nothing: it is the same post-hoc arithmetic over recorded
 confidences that makes the sweep free.
 
 Platt rather than isotonic because two parameters is the right complexity at n = 500; isotonic on
@@ -432,7 +432,7 @@ that fact is reported.
 
 ---
 
-### D17 — Three actions, no `grant_relief`, and `request_information` is scored inside `n_ref`
+### D17. Three actions, no `grant_relief`, and `request_information` is scored inside `n_ref`
 
 **Chosen:** the agent can close with an explanation, escalate, or ask the consumer for one named
 missing fact. It has no action that moves money or corrects a record. `request_information` is
@@ -442,7 +442,7 @@ counted inside the referred population `n_ref` and its share is printed at every
 excluding it from both denominators; dropping the third action.
 
 **Why:** the decision this product automates is "close this, or route it to someone with
-authority" — so the worst outcome the agent can produce should be a wrongly-closed case, never a
+authority", so the worst outcome the agent can produce should be a wrongly-closed case, never a
 wrongly-paid one. Withholding `grant_relief` also keeps the label binary and scoreable: the
 agent's view of *what relief is due* becomes a routing signal rather than an action needing its
 own ground truth.
@@ -454,15 +454,15 @@ every hard case there and improve both headline numbers at once. Counting it ins
 its share printed is the only treatment that cannot be gamed.
 
 The precondition that stops it becoming a hedge is `information_already_present`: the agent must
-name the specific obligation input the narrative does not supply — a transaction date, a dollar
-amount, a notification date — not ask a vague question about every hard case.
+name the specific obligation input the narrative does not supply, whether a transaction date, a dollar
+amount, or a notification date, and not ask a vague question about every hard case.
 
 **Could be reversed by:** discovery establishing that consumers are never re-contacted at this
 stage, in which case the third action is an artifact of the brief and should go.
 
 ---
 
-### D18 — Stratified sampling with reweighting, and bands on the frontier
+### D18. Stratified sampling with reweighting, and bands on the frontier
 
 **Chosen:** 250 relief / 250 no-relief per split, Horvitz–Thompson weights from the known
 population shares, bootstrap resampled within stratum at 2,000 replicates. Every published
@@ -472,7 +472,7 @@ operating point prints `n_auto` and the positive count behind its false-resoluti
 no interval.
 
 **Why:** at a 20.63% positive class, 500 uniform draws yields ~103 positives, and the
-false-resolution numerator at the conservative end of the sweep — high τ, small `n_auto` — is a
+false-resolution numerator at the conservative end of the sweep (high τ, small `n_auto`) is a
 single-digit cell count. A curve drawn through those is not a curve. The stratified draw buys
 ~2.4× the positives in the cell that binds at identical token cost, and it is unbiased under
 reweighting. The agent never sees `Resolution`, so it cannot detect which stratum a case came
@@ -493,7 +493,7 @@ turn out too wide, which is what the $40 reserve in DESIGN.md §5.7 is for.
 
 ---
 
-### D19 — `date_received_max` is inclusive, and every M0 figure was overcounted by a day
+### D19. `date_received_max` is inclusive, and every M0 figure was overcounted by a day
 
 **Chosen:** both window bounds are inclusive; the fetcher passes `window.end` unchanged.
 
@@ -510,7 +510,7 @@ into validation, and the whole-slice total was 397,945 instead of 396,952.
 
 Nothing looked wrong. The splits were plausible, the base rates were plausible, and the
 conclusions did not change. It was found because the assumption got written into a comment in
-`api.py` — and a sentence claiming the API behaves a certain way is a claim, so it got checked.
+`api.py`, and a sentence claiming the API behaves a certain way is a claim, so it got checked.
 The corrected windows now sum to exactly what a single query over the full range returns, which
 is a check that did not hold before and now runs as a coverage assertion on every fetch.
 
@@ -523,7 +523,7 @@ defence is an independent total to reconcile against.
 
 ---
 
-### D20 — Dependencies are pinned to public PyPI, explicitly, in a committed target
+### D20. Dependencies are pinned to public PyPI, explicitly, in a committed target
 
 **Chosen:** `make setup` installs with `--index-url https://pypi.org/simple/`.
 
@@ -533,7 +533,7 @@ defence is an independent total to reconcile against.
 mirror. Installing
 through it would work here and fail for anyone else, which breaks the brief's requirement that
 a stranger reach a working instance from the README in five minutes. It is the same defect as
-an employer email in the commit log or a corporate registry host in a lockfile — the repository
+an employer email in the commit log or a corporate registry host in a lockfile: the repository
 has to outlive the employer, including its network.
 
 The index is set on the command line inside a committed `Makefile` rather than in a config file,
@@ -544,10 +544,10 @@ because the explicit flag is visible in the one place a reader is already lookin
 
 ---
 
-### D21 — The API has no pagination, and believing its documentation cost a full fetch
+### D21. The API has no pagination, and believing its documentation cost a full fetch
 
 **The mistake.** The CFPB search endpoint documents an offset parameter, `frm`. It accepts it.
-It validates it — `frm` above 10,000 returns HTTP 400 `Ensure this value is less than or equal
+It validates it: `frm` above 10,000 returns HTTP 400 `Ensure this value is less than or equal
 to 10000`, and `frm` that is not an exact multiple of `size` returns HTTP 400 `frm is not zero
 or a multiple of size`. Both of those errors cost me a debugging cycle each, and both taught the
 same wrong lesson: that the parameter works and I was holding it incorrectly.
@@ -567,7 +567,7 @@ to have read 20,000. Holding sort constant does not help; the behaviour is ident
 `created_date_desc`, `relevance_desc`, and no sort, and page 1 is byte-stable across repeated
 requests, so nothing about it looks broken.
 
-**How it surfaced.** `FetchResult.assert_complete` — retrieved 359,006 distinct complaints
+**How it surfaced.** `FetchResult.assert_complete` fired: retrieved 359,006 distinct complaints
 against an API count of 396,952, short by 37,946. Nothing else would have caught it. Every
 record fetched was valid, the schema was right, the date coverage was continuous, the product
 mix was plausible, and the file was 90% of the expected size. A 9.6% silent loss concentrated in
@@ -579,7 +579,7 @@ ingestion layer, and it justified itself on the first run.
 
 **What replaced paging.** Reversing the sort. `created_date_asc` and `created_date_desc`
 traverse opposite ends of the same total order, so two requests reach 20,000 records where one
-reaches 10,000 — the ceiling I originally documented, arrived at by a completely different
+reaches 10,000, the ceiling I originally documented, arrived at by a completely different
 mechanism than the one I assumed. Measured on the worst partition in the corpus, 2025-01-17
 money transfer, 12,325 complaints in a single day:
 
@@ -595,19 +595,19 @@ of theirs, not a documented guarantee.
 
 **So it is the last resort, not the default.** The fetcher bisects the date range, then splits
 by product, and only reads both ends when a single day of a single product still exceeds a
-page. `PARTITION_TARGET` is 9,000 — under the 10,000 page ceiling — so the ordinary path is one
+page. `PARTITION_TARGET` is 9,000, under the 10,000 page ceiling, so the ordinary path is one
 request per partition and the fragile path runs roughly once in the whole corpus. When it does
 run, `_read_partition` compares the union against the count for that partition and raises
 `PartitionTooLargeError` naming the day and the product, rather than deferring to a coverage
 assertion that would report a five-year window five years wide.
 
 **Rejected:** `search_after`, which returns HTTP 424. Partitioning on `state` or `company`,
-either of which would add a third axis — unnecessary once the two-ended read covered the worst
+either of which would add a third axis, unnecessary once the two-ended read covered the worst
 day with 38% slack, and both would need an aggregation request per partition to enumerate the
 values. Lowering `PARTITION_TARGET` to 4,000 and never reading both ends, which trades a rare
 fragile path for roughly 100 extra requests and still fails on 2025-01-17.
 
-**What I should have done.** The first version of the fetch fixture honoured `frm` — it paged
+**What I should have done.** The first version of the fetch fixture honoured `frm`: it paged
 obligingly, because I wrote it from the same documentation the client was written from. A mock
 built from an assumption cannot test that assumption. The fixture is now `FakeCFPB`, which
 reproduces the trap: it ignores `frm` and always returns the first `size` in sort order. With
@@ -619,7 +619,7 @@ notice, because it only fails in the safe direction.
 
 ---
 
-### D22 — Dates do not survive redaction, so no obligation may be keyed to date arithmetic
+### D22. Dates do not survive redaction, so no obligation may be keyed to date arithmetic
 
 Measured over all 396,952 narratives (`docs/data-quality.md` §1):
 
@@ -665,7 +665,7 @@ the API's. Not checked, and worth ten minutes before M4.
 
 ---
 
-### D23 — Two respondents never grant relief, and that is a threat to the whole premise
+### D23. Two respondents never grant relief, and that is a threat to the whole premise
 
 `docs/data-quality.md` §7:
 
@@ -686,7 +686,7 @@ M2 answers it before M3 begins rather than after M6. The premise test now fits `
 and `categorical, no company` alongside the rest, and the gap between them is what the name is
 worth on its own.
 
-**Not yet decided** — the measurement comes first, and the argument runs both ways. Respondent
+**Not yet decided.** The measurement comes first, and the argument runs both ways. Respondent
 identity is genuinely known at intake and a real support agent would genuinely know it, so
 withholding it makes the eval harder than the job. But if the name alone reaches most of the
 frontier, then the agent's reasoning is decoration on a lookup table, and the honest artifact
@@ -694,7 +694,7 @@ is a chart with `company only` drawn on it as the baseline that the reasoning fa
 
 ---
 
-### D24 — The narrative is worth less than the dropdowns, so the agent runs company-blind
+### D24. The narrative is worth less than the dropdowns, so the agent runs company-blind
 
 M2 measured it, and the answer is not the one the brief assumes. From `docs/premise.md`, ROC
 AUC on validation, all fit on train only:
@@ -713,14 +713,14 @@ test as well as validation:
 
 1. **Reading the complaint is worse than reading the dropdowns.** Narrative over categorical is
    **−0.0327** AUC (−0.0383 to −0.0269).
-2. **The narrative adds almost nothing on top of them.** +0.0126 (+0.0093 to +0.0158) — real,
+2. **The narrative adds almost nothing on top of them.** +0.0126 (+0.0093 to +0.0158), real,
    significant, and one tenth the size of the next line.
 3. **The company name is worth +0.1189** (+0.1130 to +0.1253) added to the other categoricals.
    Strip it out and the model does not merely weaken, it collapses at the conservative end:
    0.1% of the queue auto-resolvable at a 1% error rate, against 20.5% with it. A factor of 200.
 
 The frontier at the operating points anyone would actually pick is a lookup table. `company
-only` — one categorical feature, no text, no reasoning, no per-case cost — auto-resolves 21.2%
+only`, one categorical feature, no text, no reasoning, no per-case cost, auto-resolves 21.2%
 of validation at a 1% false-resolution rate. That is not a baseline an agent beats by thinking
 harder; it is the answer, and the agent would be an expensive way to memorise it.
 
@@ -736,7 +736,7 @@ The reasoning is a product judgement, not a statistical one. Three parts:
   means extracting more from the text than a bag of bigrams does, which is exactly the thing an
   LLM should be able to do and exactly the thing that is not yet demonstrated.
 - **TF-IDF is a floor on narrative signal, not a ceiling.** It cannot tell an authorised
-  transfer the consumer was deceived into making from an unauthorised one — a distinction worth
+  transfer the consumer was deceived into making from an unauthorised one, a distinction worth
   26 points of relief rate in this corpus and the difference between a Reg E error and no error
   at all. If the agent cannot beat 0.748 with that distinction available to it, the premise
   really has failed, and the frontier plot will say so.
@@ -754,7 +754,7 @@ Reporting only the AUC comparison, which is where this looks like a modest 0.033
 the frontier difference at 1% FRR is 200-fold.
 
 **What this costs.** The honest headline is now "reading the complaint is worth roughly 12% of
-the queue at a 1% error rate, against 21% for knowing who it is about" — a weaker claim than
+the queue at a 1% error rate, against 21% for knowing who it is about", a weaker claim than
 the brief imagined, and one that could get weaker still if the agent underperforms TF-IDF.
 That is the claim the measurement supports.
 
@@ -764,7 +764,7 @@ the other way.
 
 ---
 
-### D25 — The calibration bar is set by logistic regression, not by hope
+### D25. The calibration bar is set by logistic regression, not by hope
 
 The user's M1 note asked for calibration to be measured rather than assumed, on the grounds
 that LLM-stated confidence usually is not calibrated. The baselines now say what "calibrated"
@@ -776,7 +776,7 @@ the right bar rather than an unfair one. If the agent's stated confidence lands 
 above it, then `tau` is a number on a scale that does not mean what it says, and the whole
 frontier is drawn on sand.
 
-Platt scaling on validation stays the remedy rather than isotonic, per D16 — at 500 evaluated
+Platt scaling on validation stays the remedy rather than isotonic, per D16: at 500 evaluated
 complaints per split, isotonic has enough freedom to fit the noise. Whether it is needed is an
 M6 measurement. The reliability diagram goes on the same page as the frontier.
 
@@ -785,13 +785,13 @@ alike, from one implementation, for the reason in that module's docstring.
 
 ---
 
-### D26 — A transport failure is excluded from the metrics, not scored as a wrong answer
+### D26. A transport failure is excluded from the metrics, not scored as a wrong answer
 
 An episode that never reached the model is recorded with its error, kept in the transcript, and
 dropped from every number in `docs/eval.md`. The count and the share are printed at the top of
 the report, and above 2% the report says in its own text that the numbers are provisional.
 
-**Rejected: score it as a zero-confidence escalation.** Tidier — every sampled complaint keeps a
+**Rejected: score it as a zero-confidence escalation.** Tidier, since every sampled complaint keeps a
 row, and the denominators stay round. It also charges the agent for a connection reset. At the
 conservative end of the frontier, where the operating point is chosen from few records, a
 handful of imputed zeros moves the published auto-resolution rate by more than any prompt change
@@ -805,11 +805,11 @@ The distinction is that a transport failure is *missing data* and an undecided e
 *result*. An agent that burned eight turns without producing a decision told us something real,
 and it stays in at confidence 0.0 (D19). A socket that closed told us nothing.
 
-### D27 — The eval runs concurrently, and every episode is written as it completes
+### D27. The eval runs concurrently, and every episode is written as it completes
 
 Eight workers by default. An episode is up to eight turns of adaptive thinking, so it takes one
 to three minutes of wall clock; five hundred in series is most of a day. This is not a
-performance nicety — the non-negotiable in the brief is that the eval gets *run*, and an eval
+performance nicety. The non-negotiable in the brief is that the eval gets *run*, and an eval
 that takes a day is one that gets run once, never re-run after a bug, and therefore quietly
 becomes an eval that shipped without a trustworthy run.
 
@@ -823,15 +823,15 @@ of 500 resumes for the price of the remaining 100. Sample order rather than comp
 so two runs of the same configuration diff row for row.
 
 **Rejected: the Batches API.** Half the price and the right shape for a fixed set of prompts.
-It cannot run a tool loop — each episode is a conversation whose next request depends on what a
-tool returned — so it would mean giving up `simulate_action`, which is the mechanism the whole
+It cannot run a tool loop, since each episode is a conversation whose next request depends on what a
+tool returned, so it would mean giving up `simulate_action`, which is the mechanism the whole
 precondition design rests on. A 50% saving is not worth deleting the thing being measured.
 
-### D28 — The run is priced and confirmed before it starts, and there is a ten-complaint smoke run
+### D28. The run is priced and confirmed before it starts, and there is a ten-complaint smoke run
 
 `make eval` prints its estimated bill and waits for a typed confirmation; `make eval-smoke` runs
-ten complaints for about a dollar. Everything the full run touches — the key, the rate limit,
-the tool loop, the output schema, the transcript writer, the scorer — runs in the smoke path
+ten complaints for about a dollar. Everything the full run touches (the key, the rate limit,
+the tool loop, the output schema, the transcript writer, the scorer) runs in the smoke path
 first.
 
 This is a product decision, not a convenience. The failure it prevents is discovering at
@@ -841,13 +841,13 @@ worse than one that says why it stopped.
 
 Related: `make eval` and `make eval-replay` cannot disagree, because the live path scores
 nothing. It records the full scored `Decision` on each episode and then the report is computed
-by replaying the transcript it just wrote — the same code path, on the same bytes, that anyone
+by replaying the transcript it just wrote: the same code path, on the same bytes, that anyone
 without a key runs. Two implementations that agree today are two implementations that can drift.
 
-### D29 — Company-blind is leaky, and the claim is narrowed to what is true
+### D29. Company-blind is leaky, and the claim is narrowed to what is true
 
 Found while spot-checking narratives for the explorer page, not by looking for it. A complaint
-in the trace panel read "I contacted my bank chime" — the respondent's name, sitting in the text
+in the trace panel read "I contacted my bank chime", the respondent's name, sitting in the text
 that D24 hands the agent in full.
 
 Measured rather than argued, in [docs/name-leak.md](docs/name-leak.md):
@@ -861,19 +861,19 @@ Measured rather than argued, in [docs/name-leak.md](docs/name-leak.md):
 Both numbers are needed and they say different things. Three narratives in five name the
 company, so "the agent never sees who was complained about" is simply false and cannot be
 written anywhere. But masking costs 0.021 AUC, against the 0.761 the structured field reaches
-alone — the word is not the key. A name in prose is inconsistently spelled, absent from two
+alone. The word is not the key. A name in prose is inconsistently spelled, absent from two
 complaints in five, and carries none of the respondent's history; the field is a join onto a
 relief rate over tens of thousands of prior cases.
 
 The part that would have been easy to get wrong: quoting the AUC gap and stopping. In the metric
 this project actually reports, masking takes 29.5% of the queue down to 22.5% at a 5% error
-budget — a 24% relative loss. AUC averages over the whole ranking while the operating point is
+budget, a 24% relative loss. AUC averages over the whole ranking while the operating point is
 one place on it, and respondent names help most on exactly the confident cases a deployment
 would auto-close. A summary that quotes only "0.021 AUC" flatters the design.
 
 **Rejected: mask the narrative for the agent too.** It would make the ablation clean. It would
-also damage the text the agent must reason over — these tokens sit inside product names and
-ordinary sentences — to buy a purity the deployed system would not have, since a real queue
+also damage the text the agent must reason over (these tokens sit inside product names and
+ordinary sentences) to buy a purity the deployed system would not have, since a real queue
 contains consumers naming their bank. The measurement is the honest response, not the surgery.
 
 **Rejected: drop the company-blind framing.** The join is still the thing worth withholding. It
@@ -884,7 +884,7 @@ So D24 stands with its claim narrowed: company-blind means the structured respon
 every statistic derived from it are withheld. It does not mean the agent is ignorant of who it
 is reading about, and [README.md](README.md) says so.
 
-### D30 — The eval refuses to run against anything but the public API
+### D30. The eval refuses to run against anything but the public API
 
 The Anthropic SDK reads `ANTHROPIC_BASE_URL` from the environment. `api_key_or_explain` now
 rejects any value but `https://api.anthropic.com`, before it looks at the key.
@@ -894,7 +894,7 @@ GenAI gateway, with a corporate org header and telemetry attached. `make eval` i
 would have sent every complaint, every prompt, the whole transcript and the bill through
 infrastructure this repository does not disclose, produced `docs/eval.md` that looks identical
 either way, and left nothing in the artifact recording it. The portfolio constraint on this
-project is that it must still run, and still be mine, after I leave — and a result quietly
+project is that it must still run, and still be mine, after I leave, and a result quietly
 produced through a work gateway fails that in a way no reader could detect.
 
 The check paid for itself immediately: adding it turned four eval tests red, because they had
@@ -913,13 +913,13 @@ ever enables the wrong thing is not a feature.
 Three conversations with support operations or complaint-handling practitioners are not yet
 held. The decisions above that those conversations could reverse:
 
-- **D4**, the definition of a false resolution — the most exposed. If the relief decision is the
+- **D4**, the definition of a false resolution, the most exposed. If the relief decision is the
   cheap scripted part and the expensive judgement lives in tone, repeat contact, or regulatory
   exposure, the label is inverted.
 - **D3**, product scope, if credit-report disputes turn out to be where support cost actually
   concentrates.
 - **D12**, the excluded window, if bulk submission waves are a routine feature of the queue
-  rather than an anomaly — in which case excluding them makes the eval easier than the job.
+  rather than an anomaly, in which case excluding them makes the eval easier than the job.
 - **D17**, the third action, if consumers are never re-contacted at this stage.
 - The operating point itself, which is currently argued from recorded outcomes rather than from
   anyone's stated tolerance for a wrong auto-resolution.

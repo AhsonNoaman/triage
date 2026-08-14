@@ -98,7 +98,7 @@ class PolicyRule:
 REG_E_ERROR_RESOLUTION: Final = PolicyRule(
     rule_id="reg_e_1005_11",
     citation="12 CFR 1005.11",
-    title="Regulation E — Procedures for resolving errors",
+    title="Regulation E: Procedures for resolving errors",
     source_url="https://www.ecfr.gov/current/title-12/section-1005.11",
     governs_products=frozenset({
         CanonicalProduct.CHECKING_SAVINGS,
@@ -141,7 +141,7 @@ REG_E_ERROR_RESOLUTION: Final = PolicyRule(
 REG_E_LIABILITY: Final = PolicyRule(
     rule_id="reg_e_1005_6",
     citation="12 CFR 1005.6",
-    title="Regulation E — Liability of consumer for unauthorized transfers",
+    title="Regulation E: Liability of consumer for unauthorized transfers",
     source_url="https://www.ecfr.gov/current/title-12/section-1005.6",
     governs_products=frozenset({
         CanonicalProduct.CHECKING_SAVINGS,
@@ -175,7 +175,7 @@ REG_E_LIABILITY: Final = PolicyRule(
 REG_Z_BILLING_ERROR: Final = PolicyRule(
     rule_id="reg_z_1026_13",
     citation="12 CFR 1026.13",
-    title="Regulation Z — Billing error resolution",
+    title="Regulation Z: Billing error resolution",
     source_url="https://www.ecfr.gov/current/title-12/section-1026.13",
     governs_products=frozenset({CanonicalProduct.CREDIT_CARD}),
     obligations=(
@@ -214,7 +214,7 @@ REG_Z_BILLING_ERROR: Final = PolicyRule(
 REG_Z_UNAUTHORIZED_USE: Final = PolicyRule(
     rule_id="reg_z_1026_12_b",
     citation="12 CFR 1026.12(b)",
-    title="Regulation Z — Liability of cardholder for unauthorized use",
+    title="Regulation Z: Liability of cardholder for unauthorized use",
     source_url="https://www.ecfr.gov/current/title-12/section-1026.12",
     governs_products=frozenset({CanonicalProduct.CREDIT_CARD}),
     obligations=(
@@ -233,7 +233,7 @@ REG_Z_UNAUTHORIZED_USE: Final = PolicyRule(
 FCRA_REINVESTIGATION: Final = PolicyRule(
     rule_id="fcra_611",
     citation="15 U.S.C. § 1681i",
-    title="FCRA § 611 — Procedure in case of disputed accuracy",
+    title="FCRA § 611: Procedure in case of disputed accuracy",
     source_url="https://www.law.cornell.edu/uscode/text/15/1681i",
     # Deliberately governs nothing in scope. Credit reporting was excluded at M0 (D3), and this
     # rule stays so that `resolve()`'s `rule_does_not_govern` precondition has a real regulation

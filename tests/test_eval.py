@@ -392,7 +392,7 @@ def test_the_spend_is_quoted_before_it_is_spent(
     assert confirm_spend(500, False, tmp_path / "none.jsonl", assume_yes=True) is True
     quoted = capsys.readouterr().out
     assert "500 episodes" in quoted
-    assert "claude-opus-5" in quoted
+    assert "claude-sonnet-5" in quoted
     assert "prompt caching" in quoted, "the quote must name the cache; the number depends on it"
 
 

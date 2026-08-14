@@ -499,7 +499,7 @@ footer { margin-top: 52px; padding-top: 20px; border-top: 1px solid var(--rule);
 
 <h1>The frontier, and one complaint</h1>
 <p class="lede">An agent decides whether a consumer financial complaint can be closed with an
-explanation or needs a person who can grant relief. The question is never "is it good" — it is
+explanation or needs a person who can grant relief. The question is never "is it good", it is
 how much of the queue you can close unattended before the mistakes cost more than the saving.
 Drag the threshold and read that off.</p>
 
@@ -529,7 +529,7 @@ Drag the threshold and read that off.</p>
 
 <section>
   <h2>2. One complaint, through the environment</h2>
-  <p class="note">Everything below is computed by the same code the agent calls — the view it is
+  <p class="note">Everything below is computed by the same code the agent calls, from the view it is
   given, the regulations that govern the issue, what retrieval returns from the training window,
   and what the preconditions do to an action. The outcome is withheld until you ask for it,
   because it is withheld from the agent too.</p>
@@ -588,7 +588,7 @@ function drawChart() {
   }
   parts.push(`<line class="axis" x1="${M.l}" x2="${M.l + iw}" y1="${M.t + ih}" y2="${M.t + ih}"/>`);
   parts.push(`<text class="axlabel" x="${M.l + iw / 2}" y="${H - 8}" text-anchor="middle"
-    >false-resolution rate — share of auto-closed cases that in fact got relief</text>`);
+    >false-resolution rate, the share of auto-closed cases that in fact got relief</text>`);
   parts.push(`<text class="axlabel" transform="translate(13 ${M.t + ih / 2}) rotate(-90)"
     text-anchor="middle">auto-resolution rate (%)</text>`);
 
@@ -693,7 +693,7 @@ function drawTrace() {
         o.verifiable
           ? '<span class="pass">checkable</span>'
           : '<span class="strike">not checkable from a redacted narrative</span>'
-      } — ${esc(o.description)}</div>`).join('')}
+      }. ${esc(o.description)}</div>`).join('')}
     </div>`).join('')
     : `<p class="note">No federal rule in the model governs this issue. The environment returns
        nothing rather than the nearest-looking regulation, so an agent that cites one is wrong
@@ -706,11 +706,11 @@ function drawTrace() {
       <dl>
         <dt>received</dt><dd>${esc(s.received)}</dd>
         <dt>product</dt><dd>${esc(s.product_label)}${
-          s.sub_product ? ' — ' + esc(s.sub_product) : ''}</dd>
-        <dt>issue</dt><dd>${esc(s.issue)}${s.sub_issue ? ' — ' + esc(s.sub_issue) : ''}</dd>
+          s.sub_product ? ', ' + esc(s.sub_product) : ''}</dd>
+        <dt>issue</dt><dd>${esc(s.issue)}${s.sub_issue ? ', ' + esc(s.sub_issue) : ''}</dd>
         <dt>state</dt><dd>${esc(s.state) || '—'}</dd>
         <dt>channel</dt><dd>${esc(s.submitted_via)}</dd>
-        <dt>company</dt><dd><span class="strike">withheld</span> \u2014 the agent runs
+        <dt>company</dt><dd><span class="strike">withheld</span>. The agent runs
           company-blind, because the respondent's name predicts the outcome better than the
           complaint does</dd>
       </dl>
@@ -731,7 +731,7 @@ function drawTrace() {
             <span class="pill ${n.granted_relief ? 'no' : 'yes'}">${
               n.granted_relief ? 'got relief' : 'no relief'}</span>
           </div>
-          <div class="why">similarity ${n.similarity} — ${esc(n.issue)}</div>
+          <div class="why">similarity ${n.similarity}, ${esc(n.issue)}</div>
           <details><summary>narrative</summary>
             <div class="narrative">${esc(n.narrative)}</div></details>
         </div>`).join('')
@@ -759,7 +759,7 @@ function drawTrace() {
     <div class="absent">
       Recorded outcome: <b>${esc(c.truth.response)}</b>. Counted as
       <b>${c.truth.needed_human ? 'needed a human' : 'closeable without one'}</b>.
-      This is company behaviour, not an adjudication — a complaint closed with an explanation may
+      This is company behaviour, not an adjudication. A complaint closed with an explanation may
       still have deserved relief.
     </div>
   </details>`;

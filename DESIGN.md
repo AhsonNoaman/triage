@@ -24,7 +24,7 @@ Companion documents: [DECISIONS.md](DECISIONS.md), [docs/open-questions.md](docs
 
 A support operations lead running a consumer-banking complaint queue has flat headcount, rising
 volume, and a mandate to automate. The question they cannot answer today is not whether a model
-can draft a good reply — it plainly can — but what share of the queue is safe to let it close
+can draft a good reply (it plainly can) but what share of the queue is safe to let it close
 without a human ever reading it. Automate too little and cost per contact and backlog stay where
 they are. Automate too much and some fraction of customers who were owed a refund get a polite,
 fluent, well-cited explanation instead; that lands weeks later as a regulator complaint, a
@@ -44,11 +44,11 @@ agent can safely auto-resolve a meaningful share, and the unsafe share is identi
 advance.* The brief scheduled that test for M2. It was run at M0 instead, because the ground
 truth it rests on was the part most likely to be missing.
 
-Measured against the live CFPB search API on 2026-08-10 — 17,004,291 complaints.
+Measured against the live CFPB search API on 2026-08-10: 17,004,291 complaints.
 
 | | |
 |---|---|
-| `consumer_disputed` present in the API index | **no — 0 of 17,004,291 rows bucketed, in any window** |
+| `consumer_disputed` present in the API index | **no. 0 of 17,004,291 rows bucketed, in any window** |
 | `Closed with monetary relief`, whole database, 2025 | **0.48%** |
 | `Closed with monetary relief`, whole database, 2016 | 6.26% |
 | Credit reporting share of all complaints, 2025 | **88.4%** |
@@ -77,14 +77,14 @@ basis of the M2 script that does get committed.
 
 **Both halves of the brief's proposed ground truth failed.**
 
-`consumer_disputed` is not merely discontinued after the dispute process ended in April 2017 — it
+`consumer_disputed` is not merely discontinued after the dispute process ended in April 2017. It
 is absent from the search index entirely. Pre-2017 windows return 768,667 complaints and 100% of
 them are unbucketed on that field. Recovering it means the bulk CSV, and confines the project to
 complaints filed before 2017.
 
 `Closed with monetary relief` still exists but has collapsed to **0.48%** database-wide. An agent
 that auto-resolves every complaint in 2025 scores 99.52% "correct" under that definition. The
-threshold sweep would be flat and the frontier curve — the headline artifact — would carry no
+threshold sweep would be flat and the frontier curve (the headline artifact) would carry no
 information. This is the failure that would otherwise have surfaced at M6.
 
 **The cause is composition, not data quality.** The database is 88.4% credit reporting, up from
@@ -111,7 +111,7 @@ Monetary relief among complaints carrying a narrative, 2021-2025:
 Counts in this table are under the *current* product labels only, and four of them are
 understated: the taxonomy carries retired labels for the same products (trap 1 below). Corrected
 and summed over the split windows in §5.1, the in-scope population is **396,952** narrative
-complaints — 325,919 retained and 71,033 in the excluded window — against roughly 3.06 million
+complaints (325,919 retained and 71,033 in the excluded window) against roughly 3.06 million
 narrative complaints across all products.
 
 The finding is neither "the premise failed" nor "the premise held". It is: **the CFPB database as
@@ -121,7 +121,7 @@ than a footnote.
 
 ### 2.3 Two data traps found at M0, both of which would have corrupted the eval
 
-**Trap 1 — `product` is not a stable key, and the naive filter silently drops 59,402 complaints.**
+**Trap 1. `product` is not a stable key, and the naive filter silently drops 59,402 complaints.**
 
 The CFPB re-versions its product taxonomy without restating history. `Credit card or prepaid
 card` is a distinct label from both `Credit card` and `Prepaid card`, and it carries in-scope
@@ -136,13 +136,13 @@ narrative complaints:
 | 2025 | **0** | — |
 
 Filtering on the two current labels drops 59,402 of the 156,431 in-scope complaints filed before
-2024 — **38%** — and drops them *entirely from the training window*, which is where the
+2024 (**38%**) and drops them *entirely from the training window*, which is where the
 `similar_to` retrieval corpus lives. The agent would have retrieved from a corpus with a
 three-year hole in it, and nothing in the eval would have shown that. The same versioning affects
 credit reporting, which carries two labels for the same product.
 
 `sub_product` is what makes the retired label recoverable rather than merely countable. It
-partitions cleanly — 93.2% of the retired label carries a credit-card sub-product and 6.8% a
+partitions cleanly: 93.2% of the retired label carries a credit-card sub-product and 6.8% a
 prepaid one, and no sub-product appears under two canonical products. That split is load-bearing
 rather than cosmetic: credit cards fall under Reg Z and prepaid cards under Reg E, so collapsing
 the retired label onto one canonical product would make `resolve()` reject the correct citation
@@ -151,7 +151,7 @@ for the other half.
 The in-scope product set is therefore five labels, not four, and `Product` gets an explicit
 alias map rather than a passthrough of the raw string.
 
-**Trap 2 — January 2025 is a bulk-submission event, and it sat in the middle of the test split.**
+**Trap 2. January 2025 is a bulk-submission event, and it sat in the middle of the test split.**
 
 In-scope monthly volume and relief rate:
 
@@ -191,7 +191,7 @@ is **inclusive**, not exclusive: `min=max=2025-12-31` returns 409 complaints rat
 The fetcher had been written to add a day to the window end, so each split absorbed the first day
 of the next one and the excluded window leaked a day into validation.
 
-It is recorded here because of how it was found — not by a number looking wrong, but by writing
+It is recorded here because of how it was found: not by a number looking wrong, but by writing
 the assumption into a comment in `api.py` and then checking it because it was an assumption. The
 corrected split totals now sum to 396,952, which is exactly what a single query over the whole
 range returns. That agreement is the check; it did not hold before.
@@ -205,8 +205,8 @@ described.
 
 ### 3.1 The complete outcome vocabulary in scope
 
-`company_response` on the in-scope slice. Every value that occurs, with its train-window count —
-there is no residual "other":
+`company_response` on the in-scope slice. Every value that occurs, with its train-window count,
+and there is no residual "other":
 
 | `company_response` | train n | share | Counts as *a human was needed*? |
 |---|---:|---:|---|
@@ -236,14 +236,14 @@ explanation would have withheld a payment the company itself decided to make.
 
 **`Closed with non-monetary relief` → yes, and including it is the substantive choice here.**
 Non-monetary relief is a correction to a record, a reversed adverse action, a restored account, a
-fee schedule change. It is 11.1% of the train window — nearly as large as monetary relief, and
+fee schedule change. It is 11.1% of the train window, nearly as large as monetary relief, and
 larger than it in credit card complaints. The brief's proxy omitted it entirely.
 
 Excluding non-monetary relief would mean scoring an agent as correct for closing "you froze my
 account and will not tell me why" with an explanation, in a case where the company in fact
 unfroze the account. That is the same category of error as a withheld refund, and it is a
 category where the customer harm is often larger. Including it also roughly doubles the positive
-class — on the validation split, from 12.68% to **20.63%** — which is the difference between a
+class (on the validation split, from 12.68% to **20.63%**) which is the difference between a
 curve that can be estimated from a few hundred samples and one that cannot.
 
 **`Untimely response` → excluded rather than mapped.** It records that the company missed the
@@ -285,7 +285,7 @@ all of which stay in the README:
 
 The model therefore predicts **company behaviour, not adjudicated correctness.** For this product
 that is the right target, because the decision being automated is "close this with an explanation,
-or route it to someone with authority to grant relief" — and company behaviour is exactly what
+or route it to someone with authority to grant relief", and company behaviour is exactly what
 determines whether that routing was needed. But the claim in the README is the narrow one, and it
 is written narrowly.
 
@@ -297,8 +297,8 @@ makes it so.
 
 ## 4. The object model
 
-Six objects. `Consumer` from the brief is dropped; `Resolution` — which the brief introduced in
-its link list without counting toward its own six-object limit — takes the slot.
+Six objects. `Consumer` from the brief is dropped; `Resolution`, which the brief introduced in
+its link list without counting toward its own six-object limit, takes the slot.
 
 ```
 Complaint  -[filed_against]->   Company
@@ -311,7 +311,7 @@ Product    -[contains]->        IssueCategory
 
 ### 4.1 Objects and properties
 
-**`Complaint`** — the unit of work. Identity: `complaint_id` (CFPB-assigned, stable).
+**`Complaint`**. The unit of work. Identity: `complaint_id` (CFPB-assigned, stable).
 
 | Property | Source | Notes |
 |---|---|---|
@@ -324,14 +324,14 @@ Product    -[contains]->        IssueCategory
 | `issue` / `sub_issue` | `issue`, `sub_issue` | |
 | `submitted_via` | `submitted_via` | |
 | `state`, `zip_prefix` | `state`, `zip_code` | partial ZIP; the only geography |
-| `tags` | `tags` | `Servicemember`, `Older American`, or empty — empty on 81.9% |
+| `tags` | `tags` | `Servicemember`, `Older American`, or empty. Empty on 81.9% |
 
 The API returns exactly these seventeen fields and no others. `consumer_consent_provided` and
 `consumer_disputed` are **not** among them, which is the record-level confirmation of D2.
 `state`, `zip_code`, and `tags` are the fields that would have populated `Consumer`. They stay
 here as columns.
 
-**`Company`** — the respondent. Identity: the CFPB `company` string, normalised through a
+**`Company`**. The respondent. Identity: the CFPB `company` string, normalised through a
 committed alias table.
 
 | Property | Notes |
@@ -343,7 +343,7 @@ committed alias table.
 Derived, and computed **per split, from that split's past only**: `n_complaints`,
 `relief_rate`, `median_days_to_response`. Reaching forward is the same leakage as a random split.
 
-**`Product`** — the top of the taxonomy. Identity: a canonical slug, not the raw string.
+**`Product`**. The top of the taxonomy. Identity: a canonical slug, not the raw string.
 
 | Property | Notes |
 |---|---|
@@ -354,7 +354,7 @@ Derived, and computed **per split, from that split's past only**: `n_complaints`
 The `labels` list is what trap 1 above requires. Five in-scope raw labels collapse to four
 canonical products.
 
-**`IssueCategory`** — what the complaint is about. Identity is the tuple
+**`IssueCategory`**. What the complaint is about. Identity is the tuple
 `(product_id, sub_product, issue, sub_issue)`, **not `issue` alone.** The issue vocabulary is
 per-product and reuses wording across products: the train window contains both
 `Closing an account` and `Closing your account`, which are the same concept under two product
@@ -362,7 +362,7 @@ vocabularies. Keying on `issue` alone would merge them and would make `governed_
 since the two fall under different regulations. 44 distinct `issue` values occur in the train
 window; the tuple space is larger and is enumerated at M1 from the data rather than authored.
 
-**`PolicyRule`** — the grounding layer. Identity: the citation.
+**`PolicyRule`**. The grounding layer. Identity: the citation.
 
 | Property | Notes |
 |---|---|
@@ -376,15 +376,15 @@ Grounded in actual federal regulation rather than authored:
 
 | Rule | Governs | Obligations it supplies |
 |---|---|---|
-| Reg E — 12 CFR 1005.11 | checking/savings, prepaid, money transfer | 10-business-day investigation window, provisional credit, $50 / $500 / unlimited liability tiers |
-| Reg Z — 12 CFR 1026.13 | credit card | 60-day assertion window, two-billing-cycle resolution |
-| FCRA §611 | credit reporting — out of scope, and kept deliberately | 30-day reinvestigation |
+| Reg E, 12 CFR 1005.11 | checking/savings, prepaid, money transfer | 10-business-day investigation window, provisional credit, $50 / $500 / unlimited liability tiers |
+| Reg Z, 12 CFR 1026.13 | credit card | 60-day assertion window, two-billing-cycle resolution |
+| FCRA §611 | credit reporting, out of scope and kept deliberately | 30-day reinvestigation |
 
 FCRA §611 governs nothing in scope, which is exactly why it stays: `resolve()`'s
 `rule_does_not_govern` precondition needs a real rule that a real in-scope complaint must not
 cite. A rejection test whose negative case is a fabricated rule tests the fixture, not the check.
 
-**`Resolution`** — the recorded outcome, and the label. Identity: one per complaint.
+**`Resolution`**. The recorded outcome, and the label. Identity: one per complaint.
 
 | Property | Notes |
 |---|---|
@@ -396,8 +396,8 @@ cite. A rejection test whose negative case is a fabricated rule tests the fixtur
 
 `Resolution` is a separate object rather than four more columns on `Complaint` for one reason
 that matters: **it is the only object the agent must never see.** Making it a distinct object
-with a distinct link means the withholding is structural — `traverse_links` refuses `resolved_as`
-in agent context — rather than a field-name blocklist that a later change silently defeats.
+with a distinct link means the withholding is structural (`traverse_links` refuses `resolved_as`
+in agent context) rather than a field-name blocklist that a later change silently defeats.
 
 ### 4.2 Links
 
@@ -422,7 +422,7 @@ load-bearing and both get their own tests at M3:
 
 ### 4.3 What was rejected, and why
 
-**`Consumer` as an object — rejected.** The dataset carries no consumer identifier. What exists
+**`Consumer` as an object, rejected.** The dataset carries no consumer identifier. What exists
 is a state, a partial ZIP, and two tags. There is nothing to traverse to and no identity that
 persists across complaints, so it would be an object with one row per complaint, a link that
 always has exactly one endpoint, and no query it enables. That is the "abstraction with one
@@ -430,21 +430,21 @@ implementation" the quality bar forbids. In a support corpus with real customer 
 the most interesting object in the model, because repeat contact is a strong escalation signal;
 here it is three columns wearing a hat.
 
-**`Resolution` folded into `Complaint` — rejected**, for the access-control reason in §4.1.
+**`Resolution` folded into `Complaint`, rejected**, for the access-control reason in §4.1.
 
-**Keying `IssueCategory` on `issue` alone — rejected**, because the vocabulary is per-product and
+**Keying `IssueCategory` on `issue` alone, rejected**, because the vocabulary is per-product and
 collides across products, as measured.
 
-**Authoring the policy layer over the CFPB issue taxonomy — rejected.** The CFPB publishes no
+**Authoring the policy layer over the CFPB issue taxonomy, rejected.** The CFPB publishes no
 per-issue policy rules. Authored rules make citation validity a check against fiction: the agent
 graded on citing rules invented in this repository for the purpose of grading it. That is
 circular, and it is synthetic data presented as real. Real regulation costs nothing extra and
 makes `resolve()` reject on a condition that exists outside this repository.
 
-**A `Scenario` object — rejected.** The overlay is a mechanism, not a referent. A support lead
+**A `Scenario` object, rejected.** The overlay is a mechanism, not a referent. A support lead
 does not have scenarios; they have a queue. Same call as flightops D5.
 
-**Company-level features computed over the full history — rejected** as forward leakage, per
+**Company-level features computed over the full history, rejected** as forward leakage, per
 §4.1.
 
 ### 4.4 Actions
@@ -455,7 +455,7 @@ immutable. Every rejection names the object ID and the failed precondition.
 **`resolve(complaint_id, policy_rule_id, rationale) -> Diff`**
 
 Closes the complaint with a grounded explanation and no relief. This is the only closure the
-agent can perform — it has no action that grants money or corrects a record, by design (§4.5).
+agent can perform. It has no action that grants money or corrects a record, by design (§4.5).
 
 | Precondition | Rejection |
 |---|---|
@@ -482,9 +482,9 @@ Routes to a human with authority to grant relief.
 | `reason_code` is in the enumerated set | `unknown_reason_code` |
 | `evidence` names a failed precondition, a missing obligation, or a conflicting `similar_to` neighbour | `unjustified_escalation` |
 
-`reason_code` is enumerated rather than free text — `outside_rule_window`, `disputed_facts`,
-`relief_threshold_exceeded`, `no_governing_rule`, `conflicting_precedent`, `insufficient_detail`
-— so escalations are countable by reason. An escalation that cannot name what forced it is
+`reason_code` is enumerated rather than free text (`outside_rule_window`, `disputed_facts`,
+`relief_threshold_exceeded`, `no_governing_rule`, `conflicting_precedent`, `insufficient_detail`)
+so escalations are countable by reason. An escalation that cannot name what forced it is
 rejected, which is the brief's requirement made mechanical.
 
 **`request_information(complaint_id, question, missing_field) -> Diff`**
@@ -500,14 +500,14 @@ Returns to the consumer for a specific missing fact.
 
 The third precondition is what stops this becoming a hedge. Without it, an uncertain agent asks a
 vague question about every hard case and never records an escalation. It must name the specific
-input — a transaction date, a dollar amount, a notification date — that an obligation needs and
+input (a transaction date, a dollar amount, a notification date) that an obligation needs and
 the narrative does not contain.
 
 ### 4.5 The action the agent deliberately does not have
 
 There is no `grant_relief`. The agent can close with an explanation or route the case; it cannot
-move money or correct a record. This matches the decision the product is actually about — auto-
-close, or route to someone with authority — and it means the worst outcome the agent can produce
+move money or correct a record. This matches the decision the product is actually about (auto-
+close, or route to someone with authority) and it means the worst outcome the agent can produce
 is a wrongly-closed case rather than a wrongly-paid one. It also means the agent's proposal of
 *what relief is due* is a routing signal, not an action, which keeps the eval binary and
 scoreable.
@@ -530,7 +530,7 @@ same error wearing a different hat.
 | **Validation** | 2025-03-01 – 2025-06-30 | 33,852 | **20.63%** | **the operating point and the calibrator are chosen here** |
 | **Test** | 2025-07-01 – 2025-12-31 | 56,763 | **20.35%** | **the reported numbers come from here** |
 
-Both bounds are inclusive, and the four windows sum to 396,952 — exactly what a single query
+Both bounds are inclusive, and the four windows sum to 396,952, which is exactly what a single query
 over 2021-01-01 to 2025-12-31 returns. Validation and test are adjacent and their base rates
 agree to 0.28 points, which is what the exclusion bought. Which split produced which number is
 stated everywhere a number appears.
@@ -541,7 +541,7 @@ The brief says the agent emits "a calibrated confidence" without saying of what.
 undefined until that is pinned, so:
 
 > **`c` is the agent's probability that this complaint's recorded `company_response` granted no
-> relief** — that is, `c = P(needed_human = false)`.
+> relief**: that is, `c = P(needed_human = false)`.
 
 This is the quantity a threshold should gate, it is directly checkable against the label, and it
 makes calibration well-posed. The routing rule is then:
@@ -556,7 +556,7 @@ reduced to a scalar.
 One consequence worth naming, because it is a check on the whole design: under this definition
 the false-resolution rate at threshold τ is exactly the miscalibration in the tail above τ. If
 `c` is perfectly calibrated, the false-resolution rate at τ is bounded by `1 − τ`. The frontier
-curve is a direct read of the calibration curve, which means §5.4 is not an add-on — it is the
+curve is a direct read of the calibration curve, which means §5.4 is not an add-on. It is the
 thing that makes the curve mean anything.
 
 ### 5.3 Definitions
@@ -576,7 +576,7 @@ those referred, split into `n_esc` (escalated, including threshold conversions) 
 Four of these are deliberately awkward and each would be easy to quietly improve:
 
 **False-resolution rate is divided by `n_auto`, not `N`.** Dividing by `N` makes the number fall
-automatically as τ rises and the agent closes fewer cases — the conservative end of the curve
+automatically as τ rises and the agent closes fewer cases, so the conservative end of the curve
 would look good for arithmetic reasons rather than behavioural ones. The denominator has to be
 the population the metric is about.
 
@@ -605,7 +605,7 @@ frontier a function of calibration. So, on the **validation** split only:
 - A reliability diagram, 10 equal-mass bins, with per-bin counts printed.
 - **Expected calibration error** (weighted, equal-mass binning) and **Brier score**.
 - If ECE exceeds 0.05, fit a calibrator on validation and freeze it before τ is chosen. **Platt
-  scaling by default** — two parameters is the right complexity at n = 500. Isotonic only if the
+  scaling by default**: two parameters is the right complexity at n = 500. Isotonic only if the
   validation sample reaches 2,000, because isotonic on 500 points fits noise.
 - The calibrator is applied **unchanged** to test. Both the raw and the calibrated frontier are
   published, so the effect of the calibration step is visible rather than absorbed.
@@ -642,33 +642,38 @@ them, and that statement goes in the README.
 
 Two, where the brief asked for one.
 
-1. **Categorical-only classifier** — logistic regression over product × sub_product × issue ×
+1. **Categorical-only classifier**. Logistic regression over product × sub_product × issue ×
    sub_issue × company × state, narrative withheld, fitted on train. If it matches the agent,
    that is the finding and it leads the README ahead of the agent's own numbers. It is also the
    direct test of the brief's "how much signal lives in the narrative" question.
-2. **Majority class** — always auto-close. The floor. On the test split this auto-resolves 100%
+2. **Majority class**. Always auto-close. The floor. On the test split this auto-resolves 100%
    of the queue at a 20.35% false-resolution rate, which is the clearest available illustration
    of why accuracy is the wrong frame: it is also 79.65% "accurate".
 
 ### 5.7 Eval budget, booked at M0
 
-`claude-opus-5` at $5 / $25 per MTok. Per complaint: ~4.8k uncached input (narrative plus three
-tool round-trips; system prompt and tool definitions cached), ~1.5k output ≈ **$0.06**.
+`claude-sonnet-5` at $3 / $15 per MTok. Per complaint: ~4.8k uncached input (narrative plus three
+tool round-trips; system prompt and tool definitions cached), ~1.5k output ≈ **$0.04**.
+
+Original plan called `claude-opus-5` at $5 / $25 per MTok and booked $60. The paid run used
+Sonnet 5 instead: on this task (tool-loop reasoning with a labelled outcome) the capability gap
+looked smaller than the 40% price cut, and the saved budget goes to the company-visible
+ablation the headline configuration is compared against.
 
 | | n | cost |
 |---|---:|---:|
-| Validation pass | 500 (250/250 stratified) | $30 |
-| Test pass | 500 (250/250 stratified) | $30 |
-| Threshold sweep | — | $0 — post-hoc over recorded confidences |
-| Calibration and bootstrap | — | $0 — same recorded confidences |
-| Re-grading, prompt iteration | — | $0 — record/replay |
-| Both baselines | — | $0 — scikit-learn, no API |
+| Validation pass | 500 (250/250 stratified) | $18 |
+| Test pass | 500 (250/250 stratified) | $18 |
+| Threshold sweep | | post-hoc over recorded confidences, no cost |
+| Calibration and bootstrap | | same recorded confidences, no cost |
+| Re-grading, prompt iteration | | record/replay, no cost |
+| Both baselines | | scikit-learn, no API |
 
-**Budget: $100.** $60 committed, $40 held. The reserve is not for a re-run: it buys another ~660
-complaints if the validation bootstrap bands turn out too wide to distinguish candidate operating
-points. That is a decision made against measured bands rather than guessed at now — but the money
-is booked either way, because the previous project shipped a complete eval harness that was never
-run for want of exactly this.
+**Budget: $100.** $36 committed, $64 held. The reserve is not for a re-run: it buys another
+~1,800 complaints if the validation bootstrap bands turn out too wide to distinguish candidate
+operating points. That is a decision made against measured bands rather than guessed at now, but
+the money is booked either way, because the previous project shipped a complete eval harness that
+was never run for want of exactly this.
 
 ---
 
@@ -677,7 +682,7 @@ run for want of exactly this.
 Six objects, three actions, one dataset, one agent loop, four canonical products.
 
 In scope: credit card, checking or savings account, prepaid card, money transfer / virtual
-currency / money service — across **five** raw product labels, including the retired
+currency / money service, across **five** raw product labels, including the retired
 `Credit card or prepaid card`. Narratives only. 2021-2025, less the excluded window in §5.1.
 
 Out of scope and deliberately so: credit reporting (0.06% positive class), debt collection,

@@ -30,7 +30,7 @@ The same model twice: identical vectorizer, regularisation and splits, fit once 
 | narrative as published | 0.7469 | 29.5% | 0.0147 |
 | narrative, respondent names masked | 0.7260 | 22.5% | 0.0178 |
 
-**The leak is worth 0.0209 AUC — and 7.0% of queue volume at a 5% error budget**, which is the number that actually matters here. AUC summarises the whole ranking; the frontier is read at one operating point, and the leak is concentrated exactly where a deployment would sit.
+**The leak is worth 0.0209 AUC, and 7.0% of queue volume at a 5% error budget**, which is the number that actually matters here. AUC summarises the whole ranking; the frontier is read at one operating point, and the leak is concentrated exactly where a deployment would sit.
 
 ## What this changes
 

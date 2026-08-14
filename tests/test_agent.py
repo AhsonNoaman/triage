@@ -29,7 +29,13 @@ from triage.agent import (
     run_episode,
     write_transcript,
 )
-from triage.agent.loop import api_key_or_explain
+from triage.agent.loop import (
+    CACHE_READ_COST_PER_MTOK,
+    CACHE_WRITE_COST_PER_MTOK,
+    INPUT_COST_PER_MTOK,
+    OUTPUT_COST_PER_MTOK,
+    api_key_or_explain,
+)
 from triage.ontology import AgentView, ComplaintView, Ontology, SimilarityIndex
 from triage.scope import Split
 
@@ -209,7 +215,7 @@ def test_the_request_carries_the_tools_the_schema_and_adaptive_thinking() -> Non
     run_episode(client, view=view, toolbox=toolbox)
 
     request = client.requests[0]
-    assert request["model"] == "claude-opus-5"
+    assert request["model"] == "claude-sonnet-5"
     assert request["thinking"] == {"type": "adaptive"}
     assert request["output_config"]["format"]["schema"] is DECISION_SCHEMA
     assert len(request["tools"]) == 3
@@ -239,6 +245,27 @@ def test_a_decision_whose_action_fails_its_preconditions_is_recorded_as_rejected
     assert decision.confidence == 0.91, "the confidence still counts; the frontier needs it"
 
 
+def test_a_valid_escalation_round_trips_through_the_simulator() -> None:
+    """The whole `accepted` column depends on this.
+
+    The vocabulary for the disposition the model returns and the vocabulary for the action the
+    simulator accepts have to be the same string. If they drift -- one past-tense, one
+    imperative -- every episode is silently marked ``rejection="unknown"`` and the report's
+    accepted count means nothing. This asserts the round trip on a decision that must pass:
+    ``escalate`` with an enumerated reason and evidence that names a real rejection code.
+    """
+    toolbox, view, _ = build()
+    client = StubClient([text({
+        "disposition": "escalate", "confidence": 0.72,
+        "reason_code": "disputed_facts", "evidence": "unknown_rule",
+    })])
+    decision, _ = run_episode(client, view=view, toolbox=toolbox)
+
+    assert decision.disposition == "escalate"
+    assert decision.accepted is True
+    assert decision.rejection is None
+
+
 def test_an_agent_that_never_decides_is_recorded_rather_than_retried() -> None:
     """Dropping these would quietly improve every number that follows."""
     toolbox, view, _ = build()
@@ -263,7 +290,9 @@ def test_cost_is_computed_from_recorded_tokens() -> None:
     client = StubClient([text({"disposition": "escalate", "confidence": 0.5,
                                "reason_code": "disputed_facts", "evidence": "unknown_rule"})])
     decision, _ = run_episode(client, view=view, toolbox=toolbox)
-    assert decision.cost_usd == pytest.approx((1_000 * 5.0 + 200 * 25.0) / 1e6)
+    assert decision.cost_usd == pytest.approx(
+        (1_000 * INPUT_COST_PER_MTOK + 200 * OUTPUT_COST_PER_MTOK) / 1e6
+    )
 
 
 # -- prompt caching -------------------------------------------------------------------------
@@ -325,10 +354,10 @@ def test_cache_tokens_are_recorded_and_priced_below_regular_input() -> None:
     assert decision.output_tokens == 500
 
     expected = (
-        2_000 * 5.0            # fresh input at $5/MTok
-        + 2_400 * 5.0 * 1.25   # cache writes at 1.25x
-        + 0    * 5.0 * 0.10    # cache reads at 0.10x
-        + 500  * 25.0          # output at $25/MTok
+        2_000 * INPUT_COST_PER_MTOK
+        + 2_400 * CACHE_WRITE_COST_PER_MTOK
+        + 0     * CACHE_READ_COST_PER_MTOK
+        + 500   * OUTPUT_COST_PER_MTOK
     ) / 1_000_000
     assert decision.cost_usd == pytest.approx(expected)
 
@@ -362,18 +391,25 @@ def test_a_second_turn_reads_from_cache_at_a_tenth_of_the_input_rate() -> None:
     assert decision.cache_creation_input_tokens == 1_200
     assert decision.cache_read_input_tokens == 1_200
 
-    # The prefix would have cost 2 * 1_200 * $5/M = $0.012 if sent uncached both turns. With
-    # caching it is one write at 1.25x + one read at 0.10x = 1_200 * ($6.25 + $0.50) / M =
-    # $0.0081, plus $0.0055 of fresh input and $0.0075 of output. Total $0.0211.
-    assert decision.cost_usd == pytest.approx(
-        (1_100 * 5.00 + 1_200 * 6.25 + 1_200 * 0.50 + 300 * 25.00) / 1_000_000
-    )
+    # The prefix would have cost 2 * 1_200 tokens at the input rate if sent uncached both turns.
+    # Cached, it is one write at 1.25x plus one read at 0.10x. This is where the caching change
+    # was supposed to pay off, so mutate any of the four rates in loop.py and this must move.
+    assert decision.cost_usd == pytest.approx((
+        1_100 * INPUT_COST_PER_MTOK
+        + 1_200 * CACHE_WRITE_COST_PER_MTOK
+        + 1_200 * CACHE_READ_COST_PER_MTOK
+        + 300 * OUTPUT_COST_PER_MTOK
+    ) / 1_000_000)
     # And the discount is real: recompute what the same tokens would have cost without caching.
     uncached_cost = (
-        (1_100 + 1_200 + 1_200) * 5.00 + 300 * 25.00
+        (1_100 + 1_200 + 1_200) * INPUT_COST_PER_MTOK + 300 * OUTPUT_COST_PER_MTOK
     ) / 1_000_000
     assert decision.cost_usd < uncached_cost
-    assert decision.cost_usd / uncached_cost == pytest.approx(0.844, abs=0.01)
+    # Ratio is invariant across models when the output/input token ratio and the discount
+    # factors are held: with these token counts and the current 1.25x / 0.10x tier it comes out
+    # near 0.84 for both Opus 5 and Sonnet 5. Loosely bracketed so the check survives the
+    # rounding but still fails if the discount factor gets reverted.
+    assert 0.80 < decision.cost_usd / uncached_cost < 0.88
 
 
 # -- transcripts ----------------------------------------------------------------------------

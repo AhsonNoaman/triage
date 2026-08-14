@@ -4,47 +4,48 @@ An agent that reads a consumer financial complaint the moment it arrives and dec
 can this be closed with an explanation, or does it need a person with authority to grant relief?
 
 The deliverable is not the agent. It is a curve. For every error rate a support operations lead
-might accept, the curve says how much of the queue closes unattended — so the question stops
+might accept, the curve says how much of the queue closes unattended, so the question stops
 being "is the agent good" and becomes "at what error budget, and is that budget one you would
 sign."
 
 Built on the [CFPB Consumer Complaint Database](https://www.consumerfinance.gov/data-research/consumer-complaints/):
 396,952 real complaints with consumer narratives, 2021–2025, across four product families.
 
-**[Drag the threshold](https://ahsonnoaman.github.io/triage/)** — the frontier on 33,814 held-out complaints, and one complaint
-walked through the object graph the agent reasons over.
+**[Drag the threshold](https://ahsonnoaman.github.io/triage/).** The frontier on 33,814 held-out
+complaints, and one complaint walked through the object graph the agent reasons over.
 
 ---
 
 ## Status
 
-**The eval has not been run.** Every part of it is built, tested, and type-clean — the sampler,
-the agent loop, the scorer, the plot — and `make eval-smoke` will exercise the whole path for
-about a dollar the moment an `ANTHROPIC_API_KEY` exists on the machine. It does not yet. There
-is no `docs/eval.md` and there will not be one until the run happens.
+**The eval has been run.** 500 complaints on the validation split, company-blind, $50.44 model
+spend ($0.101 per complaint). The result is in [docs/eval.md](docs/eval.md), and it is not
+flattering: the stated confidence is not calibrated (ECE 0.22 over ten bins, against a 0.02
+target from the M2 baselines) and no operating point in the tested range clears a 10%
+false-resolution rate. That is a real finding about the agent, published as the eval, not routed
+around.
 
-This is stated first because the project's own standard is that an eval gets run rather than
-merely shipped, and a harness with no run behind it is exactly the thing that standard exists to
-catch. What follows is what *has* been measured.
+The frontier below is drawn from the recorded transcript; anyone can re-score it with
+`make eval-replay` for free.
 
 | Milestone | State |
 |---|---|
-| M0 object model, metric definitions | done — [DESIGN.md](DESIGN.md) |
-| M1 ingestion, parsing, splits | done — 396,952 records, [docs/data-quality.md](docs/data-quality.md) |
-| M2 premise test | done — [docs/premise.md](docs/premise.md) |
+| M0 object model, metric definitions | done. See [DESIGN.md](DESIGN.md) |
+| M1 ingestion, parsing, splits | done. 396,952 records. See [docs/data-quality.md](docs/data-quality.md) |
+| M2 premise test | done. See [docs/premise.md](docs/premise.md) |
 | M3 ontology, typed links, retrieval | done |
 | M4 actions and preconditions | done |
 | M5 agent loop, three tools, transcripts | done |
-| M6 eval harness | built; **not run** |
-| M7 interactive frontier | done — **[live](https://ahsonnoaman.github.io/triage/)** |
+| M6 eval harness | done. See [docs/eval.md](docs/eval.md) |
+| M7 interactive frontier | done. **[live](https://ahsonnoaman.github.io/triage/)** |
 
 ---
 
 ## What has been measured, including the inconvenient part
 
 The premise test ran before the agent was built, on the theory that a product whose premise is
-false should be found out cheaply. It fits six deliberately dumb baselines and asks whether the
-narrative — the thing an LLM is uniquely able to read — carries signal the structured dropdown
+false should be found out cheaply. It fits six deliberately weak baselines and asks whether the
+narrative, which an LLM is uniquely able to read, carries signal the structured dropdown
 fields do not.
 
 ROC AUC on the validation split, positive class "needed a human":
@@ -65,17 +66,17 @@ narrative on top of the categoricals buys +0.013 (+0.009 to +0.016). Meanwhile t
 alone reaches 0.761, and adding it to the other categoricals is worth +0.119.
 
 The single most predictive fact about a complaint is who it was filed against. One respondent
-granted relief on 0.00% of 18,216 complaints and another on 0.08% of 43,637 — together 16% of
-the corpus — while a third granted it on 42% of 22,975.
+granted relief on 0.00% of 18,216 complaints and another on 0.08% of 43,637 (together 16% of
+the corpus), while a third granted it on 42% of 22,975.
 
 That is a real finding and it is unfavourable to the obvious product. It is why the agent runs
 **company-blind** by default ([D24](DECISIONS.md)): a decider that has learned which companies
-never pay has learned to predict corporate behaviour, not to triage a complaint, and the moment
-a company changes its practices that decider is confidently wrong. The company-visible
+never pay has learned to predict corporate behaviour rather than triage a complaint, and the
+moment a company changes its practices that decider is confidently wrong. The company-visible
 configuration is kept as an ablation, so the cost of the choice is measured rather than assumed.
 
 **Company-blind is leaky, and the number is in [docs/name-leak.md](docs/name-leak.md).** 58.7% of
-narratives name their own respondent — consumers write "I contacted my bank chime" — so the agent
+narratives name their own respondent. Consumers write "I contacted my bank chime", so the agent
 reads the name in three complaints out of five whatever the structured field does. Masking those
 tokens costs the narrative model 0.021 AUC, but it takes queue volume at a 5% error budget from
 29.5% down to 22.5%, a 24% relative loss. Company-blind therefore means the structured field and
@@ -88,16 +89,16 @@ Every number here is reproducible with `make premise`.
 
 ## Five minutes to a working instance
 
-Needs Python 3.11+ and `git`. No API key, no network calls, no CFPB fetch — a 3,000-complaint
+Needs Python 3.11+ and `git`. No API key, no network calls, no CFPB fetch. A 3,000-complaint
 sample is committed for exactly this.
 
 ```
 git clone <this repo> && cd triage
 make setup      # venv + dependencies from public PyPI
-make check      # ruff, mypy --strict, 230 tests (~15s cold)
+make check      # ruff, mypy --strict, 235 tests (~15s cold)
 ```
 
-Expect `229 passed, 1 skipped` — the skip is the plot smoke test, which needs an artifact
+Expect `234 passed, 1 skipped`. The skip is the plot smoke test, which needs an artifact
 `make premise` builds and the repo does not commit. Green means the object model, the
 precondition layer, the retrieval leakage guards, the metric arithmetic and the agent loop all
 work on your machine. The agent loop is driven by a stub client, so the real control flow runs
@@ -110,10 +111,10 @@ To go further:
 ```
 make fetch      # the full 396,952-record slice from the CFPB API (~6 min, 209 requests)
 make quality    # regenerate docs/data-quality.md
-make premise    # regenerate docs/premise.md -- the baselines the agent must beat
+make premise    # regenerate docs/premise.md, the baselines the agent must beat
 make plot       # redraw docs/frontier.png
 make name-leak  # regenerate docs/name-leak.md (~9 min, fits two models)
-make explorer   # rebuild docs/index.html -- the page GitHub Pages serves
+make explorer   # rebuild docs/index.html, the page GitHub Pages serves
 ```
 
 And with a key:
@@ -121,7 +122,7 @@ And with a key:
 ```
 export ANTHROPIC_API_KEY=...
 make eval-smoke   # 10 complaints, about $1. Run this first.
-make eval         # 500 complaints, about $60, a couple of hours. Quotes the bill and asks.
+make eval         # 500 complaints, about $50, about an hour. Quotes the bill and asks.
 make eval-resume  # continue an interrupted run without re-buying what completed
 make eval-replay  # re-score the recorded transcript. Free, no key, no network.
 ```
@@ -139,26 +140,25 @@ reproduce every published number from the committed transcript without spending 
 
 ## How it works
 
-**A typed object graph, not a bag of text.** Six objects — Complaint, Company, Product,
-IssueCategory, PolicyRule, Resolution — with typed links between them. The agent reaches
-everything through an `AgentView` that refuses the `resolved_as` link by construction, so the
-outcome is unreachable because the graph will not traverse there, not because three tool authors
-each remembered to leave it out.
+**The object graph.** Six objects (Complaint, Company, Product, IssueCategory, PolicyRule,
+Resolution) with typed links between them. The agent reaches everything through an `AgentView`
+that refuses the `resolved_as` link by construction, so the outcome is unreachable because the
+graph will not traverse there, not because three tool authors each remembered to leave it out.
 
-**Three tools, and no more.** `find_objects`, `traverse_links`, `simulate_action`. A small fixed
-surface makes a transcript legible and makes "it cheated" a claim you can check.
+The tool surface is exactly three: `find_objects`, `traverse_links`, `simulate_action`. A small
+fixed surface makes a transcript legible and makes "it cheated" a claim you can check.
 
-**Preconditions are part of the environment, not the grader.** `simulate_action` runs an action's
-preconditions and returns the failure *as data* — which precondition, and why — without applying
-anything. The agent can discover that its citation does not govern this issue and try again. That
-is the difference between measuring whether a model is right first time and measuring whether it
-can reason to a defensible answer. The reported action is then re-checked for real, because an
-agent may simulate one action and report another.
+Preconditions live in the environment, not the grader. `simulate_action` runs an action's
+preconditions and returns the failure as data (which precondition, and why) without applying
+anything. The agent can discover that its citation does not govern this issue and try again.
+That is the difference between measuring whether a model is right first time and measuring
+whether it can reason to a defensible answer. The reported action is then re-checked for real,
+because an agent may simulate one action and report another.
 
 **Grounded in federal regulation.** Five rules from Reg E (12 CFR 1005.11, 1005.6), Reg Z
 (12 CFR 1026.13, 1026.12(b)) and FCRA §611, mapped across all 52 in-scope (product, issue) pairs.
 An issue with no governing rule returns nothing rather than a guess. FCRA is included precisely
-because it governs nothing in scope — a citation to it is a wrong answer the harness must catch.
+because it governs nothing in scope: a citation to it is a wrong answer the harness must catch.
 
 **Retrieval that cannot see the future.** `similar_to` returns resolved complaints from the
 training window only, with three guards: no forward reach in time, no self-match, and no
@@ -183,7 +183,7 @@ what was right.
 contain a redacted date; 0.07% contain a surviving one. Reg E's ten-business-day window and
 Reg Z's sixty-day assertion window are therefore unverifiable from the text. Those obligations
 are kept in the model and marked unverifiable, and they are forbidden from grounding a
-`resolve` ([D22](DECISIONS.md)) — the data's limits are modelled rather than papered over.
+`resolve` ([D22](DECISIONS.md)). The data's limits are modelled rather than papered over.
 
 **Complaints in this database are self-selected.** People who complain to a federal regulator
 are not a random sample of people with a problem, and the queue a real support team sees is not
@@ -191,7 +191,7 @@ this queue.
 
 **Nobody who does this work has been interviewed yet.** Three discovery conversations are
 outstanding. The decisions they could reverse are listed at the end of
-[DECISIONS.md](DECISIONS.md) — including the definition of a false resolution, which is the most
+[DECISIONS.md](DECISIONS.md), including the definition of a false resolution, which is the most
 exposed assumption in the project.
 
 ---
@@ -205,10 +205,10 @@ src/triage/
   ontology/          objects, typed links, policy rules, retrieval
   actions.py         three actions, their preconditions, the overlay
   agent/             the loop, the three tools, transcripts
-  metrics.py         the frontier arithmetic -- one implementation, shared
+  metrics.py         the frontier arithmetic (one implementation, shared)
 scripts/             fetch, quality report, premise test, eval, plot
 docs/                generated measurements and written analysis
-tests/               220 tests
+tests/               235 tests
 ```
 
 | Document | What it is |

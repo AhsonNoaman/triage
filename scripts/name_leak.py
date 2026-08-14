@@ -195,7 +195,7 @@ def main(argv: list[str] | None = None) -> int:
         "|---|---:|---:|---:|",
         *[f"| {label} | {auc:.4f} | {arr:.1%} | {ece:.4f} |" for label, auc, arr, ece in rows],
         "",
-        f"**The leak is worth {gap:.4f} AUC — and {rows[0][2] - rows[1][2]:.1%} of queue "
+        f"**The leak is worth {gap:.4f} AUC, and {rows[0][2] - rows[1][2]:.1%} of queue "
         f"volume at a 5% error budget**, which is the number that actually matters here. AUC "
         f"summarises the whole ranking; the frontier is read at one operating point, and the "
         f"leak is concentrated exactly where a deployment would sit.",

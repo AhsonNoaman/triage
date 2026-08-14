@@ -34,14 +34,16 @@ from triage.actions import Disposition
 from triage.agent.tools import TOOLS, ToolBox
 from triage.ontology import ComplaintView
 
-MODEL: Final[str] = "claude-opus-5"
+MODEL: Final[str] = "claude-sonnet-5"
 MAX_TURNS: Final[int] = 8
 MAX_TOKENS: Final[int] = 8_000
 
-#: $/MTok for claude-opus-5, for `cost per resolved case`. Pinned here rather than fetched so
-#: a recorded run can be re-costed from its token counts alone.
-INPUT_COST_PER_MTOK: Final[float] = 5.0
-OUTPUT_COST_PER_MTOK: Final[float] = 25.0
+#: $/MTok for the model above, for `cost per resolved case`. Pinned here rather than fetched so
+#: a recorded run can be re-costed from its token counts alone. Sonnet 5 is the paid model
+#: rather than Opus 5: on a tool-loop task with a labelled outcome the capability gap is smaller
+#: than the 40% price cut, and the cheaper run leaves budget for the company-visible ablation.
+INPUT_COST_PER_MTOK: Final[float] = 3.0
+OUTPUT_COST_PER_MTOK: Final[float] = 15.0
 
 #: Prompt caching. The invariant prefix -- tool definitions and system prompt -- is identical
 #: across every complaint and every turn, so it is marked with `cache_control` and read from
@@ -428,8 +430,8 @@ def api_key_or_explain() -> str:
     key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not key:
         raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set. The eval calls claude-opus-5 once per complaint; "
-            "at 500 complaints per split it costs roughly $30-60. Set the variable, or pass "
+            "ANTHROPIC_API_KEY is not set. The eval calls claude-sonnet-5 once per complaint; "
+            "at 500 complaints per split it costs roughly $30-40. Set the variable, or pass "
             "--replay <transcript> to re-score a recorded run for free."
         )
     return key

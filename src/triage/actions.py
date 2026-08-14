@@ -39,11 +39,19 @@ from triage.ontology.policy import EvidenceKind, Obligation, PolicyRule
 
 
 class Disposition(StrEnum):
-    """What an action did to a complaint. One per complaint, terminal."""
+    """The three terminal actions. One per complaint.
 
-    RESOLVED = "resolved"
-    ESCALATED = "escalated"
-    INFORMATION_REQUESTED = "information_requested"
+    Values are imperative -- ``resolve``, ``escalate``, ``request_information`` -- so the same
+    string names the action the agent is told to pick (in the system prompt), the argument the
+    ``simulate_action`` tool accepts, the value the structured-output schema constrains, and the
+    disposition recorded on the resulting Diff. One vocabulary end to end: a decision whose
+    ``disposition`` field is ``"escalate"`` is the same string ``simulate_action`` accepts and
+    re-runs against, which is how the report's accepted count means what it says.
+    """
+
+    RESOLVE = "resolve"
+    ESCALATE = "escalate"
+    REQUEST_INFORMATION = "request_information"
 
 
 class RejectionCode(StrEnum):
@@ -132,10 +140,11 @@ class Overlay:
 
     def apply(self, diff: Diff) -> None:
         if not self.is_open(diff.complaint_id):
+            existing = self.dispositions[diff.complaint_id].disposition.value
             raise PreconditionFailedError(
                 diff.complaint_id,
                 RejectionCode.ALREADY_DISPOSITIONED,
-                f"already {self.dispositions[diff.complaint_id].disposition.value}",
+                f"already dispositioned as {existing}",
             )
         self.dispositions[diff.complaint_id] = diff
 
@@ -160,10 +169,11 @@ class Actions:
                 complaint_id, RejectionCode.UNKNOWN_COMPLAINT, "not in this ontology"
             ) from None
         if not self._overlay.is_open(complaint_id):
+            existing = self._overlay.dispositions[complaint_id].disposition.value
             raise PreconditionFailedError(
                 complaint_id,
                 RejectionCode.ALREADY_DISPOSITIONED,
-                f"already {self._overlay.dispositions[complaint_id].disposition.value}",
+                f"already dispositioned as {existing}",
             )
 
     def _governing_rules(self, complaint_id: str) -> tuple[PolicyRule, ...]:
@@ -247,7 +257,7 @@ class Actions:
 
         return Diff(
             complaint_id=complaint_id,
-            disposition=Disposition.RESOLVED,
+            disposition=Disposition.RESOLVE,
             fields={
                 "policy_rule_id": cited.rule_id,
                 "citation": cited.citation,
@@ -302,7 +312,7 @@ class Actions:
 
         return Diff(
             complaint_id=complaint_id,
-            disposition=Disposition.ESCALATED,
+            disposition=Disposition.ESCALATE,
             fields={
                 "reason_code": reason.value,
                 "evidence": evidence,
@@ -379,7 +389,7 @@ class Actions:
 
         return Diff(
             complaint_id=complaint_id,
-            disposition=Disposition.INFORMATION_REQUESTED,
+            disposition=Disposition.REQUEST_INFORMATION,
             fields={
                 "question": question,
                 "missing_field": missing.value,

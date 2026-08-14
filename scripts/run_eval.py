@@ -4,7 +4,7 @@
     make eval                     # needs ANTHROPIC_API_KEY; costs money
     make eval-replay              # free, from the committed transcripts
 
-Two modes, one scorer. A live run calls claude-opus-5 once per complaint and writes a JSONL
+Two modes, one scorer. A live run calls claude-sonnet-5 once per complaint and writes a JSONL
 transcript; a replay reads that transcript and recomputes every number without a network call.
 Everything after the model's confidence -- the sweep, the calibration fit, the bootstrap, the
 plot -- is post-hoc arithmetic over recorded numbers, so a bug in the grader or a change to the
