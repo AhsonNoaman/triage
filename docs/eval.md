@@ -54,11 +54,24 @@ The full curve has 28 distinct operating points; `data/eval_frontier_validation.
 
 ## 4. Against the baselines
 
-The comparison that decides whether any of this was worth building. Baseline numbers come from `docs/premise.md`, computed by the same `triage.metrics` code over the same definition of confidence. The bar for a company-blind agent is the narrative TF-IDF row: it reads the same text with no respondent identity and no reasoning.
+The comparison that decides whether any of this was worth building. Baseline numbers come from `docs/premise.md`, computed by the same `triage.metrics` code over the same definition of confidence. The fair bar for a company-blind agent is the narrative TF-IDF row: it reads the same text, has no respondent identity, and does no reasoning.
 
----
+| Max false-resolution rate | Narrative TF-IDF (baseline) | Company-blind agent (this run) |
+|---:|---:|---:|
+| 1% | 12.5% | none reachable |
+| 2% | 16.0% | none reachable |
+| 5% | 29.4% | none reachable |
+| 10% | 55.0% | none reachable |
+
+At every error budget a support lead might sign, a logistic regression on TF-IDF over the same text auto-resolves more of the queue than the agent, at $0 per case against the agent's $0.10. That is the headline finding.
 
 ## What this changes
 
-Written after the numbers above, not before them. See `DECISIONS.md`.
+The eval was run so that the finding could be the eval, rather than a claim about a system nobody had put in front of the data. Two things follow.
+
+**The frontier does not lie about the agent, but the frontier is drawn on the raw confidence.** ECE 0.22 means `c = 0.9` and `c = 0.6` do not mean nine-in-ten and six-in-ten, so a threshold on `c` sorts cases by a scale that is not what it claims to be. Platt scaling on the validation split, frozen before the operating point is picked, was pre-registered at M6 for exactly this ([D2 in DECISIONS](../DECISIONS.md)). It is the next thing to run and it is the only thing that could move the operating-point rows off "none reachable" without a new agent.
+
+**Reasoning did not beat retrieval here, at this budget, with this prompt.** The finding that TF-IDF closes 55% of the queue at a 10% error budget while the agent closes 0% is the argument for asking whether the reasoning surface was worth the tokens at all, before iterating on it. It is on the interview list ([E1](open-questions.md)) rather than being answered from the desk.
+
+The eval is a finished measurement, not a verdict on the design. It is the point at which the argument stops being about what the agent could do and becomes about what it did.
 
